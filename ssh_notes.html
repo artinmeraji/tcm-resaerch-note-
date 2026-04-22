@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SSH // PORT 22 — DedSec</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap');
+
+:root {
+  --bg:       #050507;
+  --bg2:      #090b0d;
+  --bg3:      #0d1117;
+  --panel:    #0a0f0a;
+  --border:   #0d2e0d;
+  --green:    #00ff41;
+  --green2:   #00cc33;
+  --green3:   #007a1f;
+  --dim:      #1a4d20;
+  --muted:    #2d5a30;
+  --text:     #a0e8a0;
+  --cyan:     #00e5ff;
+  --red:      #ff003c;
+  --yellow:   #ffe000;
+  --orange:   #ff6600;
+  --white:    #e0ffe0;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 13px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── scanlines overlay ───────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── noise flicker ───────────────────────────── */
+@keyframes flicker {
+  0%,100% { opacity:1; }
+  92%      { opacity:1; }
+  93%      { opacity:0.85; }
+  94%      { opacity:1; }
+  96%      { opacity:0.9; }
+  97%      { opacity:1; }
+}
+body { animation: flicker 8s infinite; }
+
+/* ── glitch text ─────────────────────────────── */
+@keyframes glitch1 {
+  0%,100% { clip-path: inset(0 0 98% 0); transform: translate(-3px,0); }
+  20%     { clip-path: inset(30% 0 50% 0); transform: translate(3px,0); }
+  40%     { clip-path: inset(70% 0 10% 0); transform: translate(-2px,0); }
+  60%     { clip-path: inset(10% 0 80% 0); transform: translate(2px,0); }
+  80%     { clip-path: inset(50% 0 30% 0); transform: translate(-1px,0); }
+}
+@keyframes glitch2 {
+  0%,100% { clip-path: inset(60% 0 20% 0); transform: translate(3px,0); }
+  20%     { clip-path: inset(10% 0 70% 0); transform: translate(-3px,0); }
+  40%     { clip-path: inset(80% 0 5%  0); transform: translate(1px,0); }
+  60%     { clip-path: inset(40% 0 40% 0); transform: translate(-2px,0); }
+  80%     { clip-path: inset(5%  0 90% 0); transform: translate(2px,0); }
+}
+
+.glitch {
+  position: relative;
+  display: inline-block;
+}
+.glitch::before,
+.glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  font: inherit;
+}
+.glitch::before {
+  color: var(--cyan);
+  animation: glitch1 3s infinite linear;
+  opacity: 0.7;
+}
+.glitch::after {
+  color: var(--red);
+  animation: glitch2 3s infinite linear;
+  opacity: 0.7;
+}
+
+/* ── blink cursor ────────────────────────────── */
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.cursor { animation: blink 1s step-end infinite; color: var(--green); }
+
+/* ── pulse glow ──────────────────────────────── */
+@keyframes glow {
+  0%,100% { text-shadow: 0 0 4px var(--green), 0 0 8px var(--green3); }
+  50%     { text-shadow: 0 0 10px var(--green), 0 0 20px var(--green2), 0 0 40px var(--green3); }
+}
+
+/* ── layout ──────────────────────────────────── */
+.page { max-width: 980px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* ── hero ────────────────────────────────────── */
+.hero {
+  text-align: center;
+  padding: 60px 0 50px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 50px;
+  position: relative;
+}
+
+.hero-eyebrow {
+  font-size: 11px;
+  letter-spacing: 4px;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+}
+
+.hero-title {
+  font-family: 'Orbitron', monospace;
+  font-size: clamp(36px, 6vw, 72px);
+  font-weight: 900;
+  color: var(--green);
+  letter-spacing: 6px;
+  animation: glow 3s ease-in-out infinite;
+  margin-bottom: 12px;
+}
+
+.hero-sub {
+  font-size: 13px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 32px;
+}
+
+.hero-tags {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.tag {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 2px;
+  font-weight: 700;
+}
+.tag-green  { border: 1px solid var(--green3); color: var(--green); background: rgba(0,255,65,0.05); }
+.tag-red    { border: 1px solid #ff003c55; color: var(--red); background: rgba(255,0,60,0.05); }
+.tag-cyan   { border: 1px solid #00e5ff44; color: var(--cyan); background: rgba(0,229,255,0.05); }
+.tag-yellow { border: 1px solid #ffe00044; color: var(--yellow); background: rgba(255,224,0,0.05); }
+
+/* ── section ─────────────────────────────────── */
+.section { margin-bottom: 50px; }
+
+.section-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--green3);
+  margin-bottom: 6px;
+}
+
+.section-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── panel ───────────────────────────────────── */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 24px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 3px; height: 100%;
+  background: var(--green3);
+}
+
+.panel.red::before   { background: var(--red); }
+.panel.yellow::before { background: var(--yellow); }
+.panel.cyan::before  { background: var(--cyan); }
+.panel.dead::before  { background: var(--muted); }
+
+.panel-title {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+p-text {
+  display: block;
+  color: var(--text);
+  line-height: 1.8;
+  font-size: 13px;
+}
+
+/* ── grid ────────────────────────────────────── */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+/* ── terminal ────────────────────────────────── */
+.terminal {
+  background: #000;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 14px 0;
+}
+
+.terminal-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #0a0a0a;
+  border-bottom: 1px solid var(--border);
+}
+.terminal-bar .d { width:9px;height:9px;border-radius:50%; }
+.d1{background:#ff5f57;} .d2{background:#ffbd2e;} .d3{background:#28c840;}
+.terminal-bar .t-label {
+  margin-left: auto;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--muted);
+}
+
+.terminal-body {
+  padding: 16px;
+  line-height: 1.9;
+  font-size: 12px;
+}
+
+.g  { color: var(--green); }
+.g2 { color: var(--green2); }
+.c  { color: var(--cyan); }
+.r  { color: var(--red); }
+.y  { color: var(--yellow); }
+.o  { color: var(--orange); }
+.mu { color: var(--muted); }
+.wh { color: var(--white); }
+.te { color: var(--text); }
+
+.kali-prompt { color: var(--muted); }
+.kali-user   { color: var(--green); }
+
+/* ── attempt cards ───────────────────────────── */
+.attempt {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  margin-bottom: 20px;
+  background: var(--bg3);
+  overflow: hidden;
+}
+
+.attempt-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: #0a0a0a;
+  border-bottom: 1px solid var(--border);
+}
+
+.attempt-num {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 2px;
+}
+
+.attempt-status {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  padding: 3px 10px;
+  border-radius: 2px;
+}
+.status-fail    { color: var(--red);    border: 1px solid var(--red);    background: rgba(255,0,60,0.08); }
+.status-err     { color: var(--orange); border: 1px solid var(--orange); background: rgba(255,102,0,0.08); }
+.status-partial { color: var(--yellow); border: 1px solid var(--yellow); background: rgba(255,224,0,0.08); }
+.status-ok      { color: var(--green);  border: 1px solid var(--green3); background: rgba(0,255,65,0.08); }
+.status-dead    { color: var(--muted);  border: 1px solid var(--muted);  background: rgba(45,90,48,0.1); }
+
+.attempt-body { padding: 18px; }
+
+.why-box {
+  margin-top: 12px;
+  padding: 10px 14px;
+  border-left: 2px solid var(--green3);
+  background: rgba(0,255,65,0.03);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.why-box.red  { border-color: var(--red);    background: rgba(255,0,60,0.04); }
+.why-box.yel  { border-color: var(--yellow); background: rgba(255,224,0,0.04); }
+.why-box.cyan { border-color: var(--cyan);   background: rgba(0,229,255,0.04); }
+
+/* ── flag breakdown ──────────────────────────── */
+.flag-table { width:100%; border-collapse:collapse; margin-top:12px; }
+.flag-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align:top; font-size:12px; }
+.flag-table tr:last-child td { border-bottom:none; }
+.flag-name  { color: var(--cyan); white-space:nowrap; width:1%; font-size:11px; padding-right:20px; }
+.flag-val   { color: var(--yellow); white-space:nowrap; width:1%; padding-right:20px; }
+.flag-desc  { color: var(--text); line-height:1.6; }
+.flag-why   { color: var(--muted); font-size:11px; margin-top:4px; }
+
+/* ── result box ──────────────────────────────── */
+.result-box {
+  border: 1px solid var(--muted);
+  border-radius: 2px;
+  padding: 30px;
+  text-align: center;
+  background: rgba(0,0,0,0.5);
+  position: relative;
+  overflow: hidden;
+}
+
+.result-box::before {
+  content: 'ACCESS DENIED';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%) rotate(-25deg);
+  font-family: 'Orbitron', monospace;
+  font-size: 80px;
+  font-weight: 900;
+  color: rgba(255,0,60,0.04);
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: 10px;
+}
+
+.result-icon {
+  font-family: 'Orbitron', monospace;
+  font-size: 40px;
+  color: var(--muted);
+  margin-bottom: 16px;
+  letter-spacing: 4px;
+}
+
+.result-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  color: var(--red);
+  letter-spacing: 4px;
+  margin-bottom: 10px;
+  animation: glow 3s infinite;
+  --green: var(--red);
+  --green2: #ff003c;
+  --green3: #990024;
+}
+
+/* ── footer ──────────────────────────────────── */
+.footer {
+  text-align: center;
+  padding: 30px 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px;
+  letter-spacing: 2px;
+}
+
+.dedsec-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 13px;
+  color: var(--green3);
+  letter-spacing: 6px;
+  margin-bottom: 6px;
+}
+
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HERO ──────────────────────────────────── -->
+  <div class="hero">
+    <div class="hero-eyebrow">// TARGET: 192.168.1.184 // PORT 22 //</div>
+    <div class="hero-title">
+      <span class="glitch" data-text="SSH">SSH</span>
+    </div>
+    <div class="hero-sub">SECURE SHELL PROTOCOL &nbsp;·&nbsp; RECONNAISSANCE LOG</div>
+    <div class="hero-tags">
+      <span class="tag tag-green">OpenSSH 2.9p2</span>
+      <span class="tag tag-cyan">Protocol 1.99</span>
+      <span class="tag tag-yellow">SSHv1 Enabled</span>
+      <span class="tag tag-red">Dead End</span>
+    </div>
+  </div>
+
+  <!-- ── WHAT IS SSH ───────────────────────────── -->
+  <div class="section">
+    <div class="section-label">// 01</div>
+    <div class="section-title">WHAT IS SSH</div>
+
+    <div class="grid-2">
+      <div class="panel">
+        <div class="panel-title">// Protocol</div>
+        <p-text>
+          SSH — Secure Shell — is a cryptographic network protocol used to
+          operate network services securely over an unsecured network.<br><br>
+          It replaced older plaintext protocols like <span class="y">Telnet</span> and
+          <span class="y">rsh</span> that sent everything including passwords in
+          cleartext over the wire.
+        </p-text>
+      </div>
+      <div class="panel">
+        <div class="panel-title">// What you can do with it</div>
+        <p-text>
+          <span class="g">→</span> Remote shell access to a machine<br>
+          <span class="g">→</span> Execute commands on a remote host<br>
+          <span class="g">→</span> Transfer files (scp / sftp)<br>
+          <span class="g">→</span> Port forwarding / tunneling<br>
+          <span class="g">→</span> Pivot through networks<br>
+          <span class="g">→</span> Grab banners for reconnaissance
+        </p-text>
+      </div>
+    </div>
+
+    <div class="panel cyan">
+      <div class="panel-title">// Why we tried it here</div>
+      <p-text>
+        Two reasons to probe SSH on a target even if you don't expect a login:<br><br>
+        <span class="c">1. Banner grabbing</span> — the SSH banner often leaks the exact OS, distro,
+        and software version before you even authenticate. That intel narrows down exploits.<br><br>
+        <span class="c">2. Version fingerprinting</span> — old SSH versions (like OpenSSH 2.9p2 here)
+        have their own known CVEs and support weak legacy algorithms that can be abused.<br><br>
+        In this case: <span class="y">no banner was exposed</span>. Dead end — but the attempt itself
+        tells us important things about how old and misconfigured this system is.
+      </p-text>
+    </div>
+  </div>
+
+  <!-- ── CONNECTION ATTEMPTS ───────────────────── -->
+  <div class="section">
+    <div class="section-label">// 02</div>
+    <div class="section-title">CONNECTION ATTEMPT LOG</div>
+
+    <!-- attempt 1 -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 01</span>
+        <span class="attempt-status status-fail">FAILED</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // plain connect</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">┌──(</span><span class="kali-user">artin㉿kali</span><span class="kali-prompt">)-[~]</span></div>
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh 192.168.1.184</span></div>
+            <br>
+            <div><span class="r">Unable to negotiate with 192.168.1.184 port 22:</span></div>
+            <div><span class="r">no matching key exchange method found.</span></div>
+            <div><span class="mu">Their offer: </span><span class="y">diffie-hellman-group-exchange-sha1,</span></div>
+            <div><span class="y">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; diffie-hellman-group1-sha1</span></div>
+          </div>
+        </div>
+        <div class="why-box red">
+          <span class="r">// What happened:</span> Modern Kali refuses to use the ancient key exchange
+          algorithms this server offers. Both <span class="y">diffie-hellman-group1-sha1</span> and
+          <span class="y">diffie-hellman-group-exchange-sha1</span> are disabled by default in
+          modern OpenSSH because they are cryptographically weak. The connection dies before
+          even reaching authentication.
+        </div>
+      </div>
+    </div>
+
+    <!-- attempt 2 -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 02</span>
+        <span class="attempt-status status-err">BAD SYNTAX</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // paste artifact</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh 192.168.1.184 -okexAlgorithms=+</span><span class="r">^[[200~</span><span class="g">diffie-hellman-group1-sha1</span></div>
+            <br>
+            <div><span class="r">zsh: bad pattern: -okexAlgorithms=+^[[200~diffie-hellman...</span></div>
+          </div>
+        </div>
+        <div class="why-box red">
+          <span class="r">// What happened:</span> The <span class="y">^[[200~</span> is a
+          <span class="c">bracketed paste mode escape sequence</span> — it's invisible garbage
+          injected by the terminal when you paste text instead of typing it. Zsh tried to
+          interpret it as part of the command and choked. Nothing to do with SSH — pure
+          terminal paste issue. The fix is to type the command manually or strip the artifact.
+        </div>
+      </div>
+    </div>
+
+    <!-- attempt 3 -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 03</span>
+        <span class="attempt-status status-fail">FAILED</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // kex fix, missing hostkey</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh 192.168.1.184 -okexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1</span></div>
+            <br>
+            <div><span class="r">Unable to negotiate with 192.168.1.184 port 22:</span></div>
+            <div><span class="r">no matching host key type found.</span></div>
+            <div><span class="mu">Their offer: </span><span class="y">ssh-rsa, ssh-dss</span></div>
+          </div>
+        </div>
+        <div class="why-box yel">
+          <span class="y">// Progress:</span> Key exchange is now unblocked — that error is gone.
+          But now a second wall: the server's <span class="c">host key types</span>
+          (<span class="y">ssh-rsa</span> and <span class="y">ssh-dss</span>) are also disabled
+          in modern OpenSSH. We need to explicitly re-enable them too.
+          Each flag fixes one layer of the legacy negotiation.
+        </div>
+      </div>
+    </div>
+
+    <!-- attempt 4 + 5 -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 04 — 05</span>
+        <span class="attempt-status status-fail">FAILED</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // malformed cipher flags</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh 192.168.1.184 -okexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1 <span class="r">-caes128-cbc,</span></span></div>
+            <div><span class="r">Unable to negotiate: no matching host key type found.</span></div>
+            <br>
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh 192.168.1.184 -okexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1 <span class="r">-caes128-cbc</span></span></div>
+            <div><span class="r">Unable to negotiate: no matching host key type found.</span></div>
+          </div>
+        </div>
+        <div class="why-box red">
+          <span class="r">// What happened:</span> The cipher flag <span class="y">-c aes128-cbc</span>
+          is being tried but the host key problem is still not fixed — so SSH fails before it
+          even reaches cipher negotiation. Fixing problems out of order means you keep hitting
+          the same wall. Host key type must be fixed first.
+        </div>
+      </div>
+    </div>
+
+    <!-- attempt 6 — bad hostkeyalgorithms -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 06</span>
+        <span class="attempt-status status-err">BAD FLAG FORMAT</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // bad hostkeyalgorithms syntax</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh -oKexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1 <span class="r">-oHostKeyAlgorithms=+ssh-rsa,ssh-dss</span> -oCiphers=+aes128-cbc user@192.168.1.184</span></div>
+            <br>
+            <div><span class="r">command-line line 0: Bad key types '+ssh-rsa,ssh-dss'.</span></div>
+          </div>
+        </div>
+        <div class="why-box red">
+          <span class="r">// What happened:</span> You can't add multiple host key types with
+          a comma-separated <span class="y">+</span> prefix like that.
+          The <span class="y">+ssh-rsa,ssh-dss</span> syntax is invalid here —
+          OpenSSH rejects it. The fix is to append only
+          <span class="y">+ssh-rsa</span> and separately handle
+          <span class="y">ssh-dss</span> via <span class="c">PubkeyAcceptedKeyTypes</span>.
+        </div>
+      </div>
+    </div>
+
+    <!-- attempt 7 — final working -->
+    <div class="attempt">
+      <div class="attempt-header">
+        <span class="attempt-num">PROBE 07</span>
+        <span class="attempt-status status-ok">CONNECTED</span>
+      </div>
+      <div class="attempt-body">
+        <div class="terminal">
+          <div class="terminal-bar">
+            <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+            <span class="t-label">kali // full legacy flags</span>
+          </div>
+          <div class="terminal-body">
+            <div><span class="kali-prompt">└─$ </span><span class="g">ssh \</span></div>
+            <div><span class="g">&nbsp;&nbsp;-oKexAlgorithms=+diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1 \</span></div>
+            <div><span class="g">&nbsp;&nbsp;-oHostKeyAlgorithms=+ssh-rsa \</span></div>
+            <div><span class="g">&nbsp;&nbsp;-oCiphers=+aes128-cbc \</span></div>
+            <div><span class="g">&nbsp;&nbsp;-oPubkeyAcceptedKeyTypes=+ssh-rsa \</span></div>
+            <div><span class="g">&nbsp;&nbsp;user@192.168.1.184</span></div>
+            <br>
+            <div><span class="mu">The authenticity of host '192.168.1.184' can't be established.</span></div>
+            <div><span class="mu">RSA key fingerprint is: </span><span class="y">SHA256:VDo/h/SG4A6H+WPH3LsQqw1jwjyseGYq9nLeRWPCY/A</span></div>
+            <div><span class="mu">Are you sure you want to continue connecting? </span><span class="g">yes</span></div>
+            <div><span class="mu">Warning: Permanently added '192.168.1.184' (RSA) to known hosts.</span></div>
+            <br>
+            <div><span class="c">user@192.168.1.184's password: </span><span class="cursor">█</span></div>
+          </div>
+        </div>
+        <div class="why-box">
+          <span class="g">// What happened:</span> All four layers of legacy negotiation are now
+          explicitly re-enabled. The SSH handshake completes, the host key is accepted, and the
+          server prompts for a password. We're talking to it — but we don't have credentials.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── FINAL COMMAND BREAKDOWN ───────────────── -->
+  <div class="section">
+    <div class="section-label">// 03</div>
+    <div class="section-title">FINAL COMMAND — FLAG BY FLAG</div>
+
+    <div class="panel cyan">
+      <div class="panel-title">// every flag and what it unlocks</div>
+      <table class="flag-table">
+        <tr>
+          <td class="flag-name">-oKexAlgorithms</td>
+          <td class="flag-val">+diffie-hellman-group-exchange-sha1,<br>diffie-hellman-group1-sha1</td>
+          <td class="flag-desc">
+            Re-enables old <span class="c">key exchange algorithms</span> that modern OpenSSH disables.
+            The <span class="y">+</span> means "add to the default list" rather than replacing it.
+            <div class="flag-why">// Without this: "no matching key exchange method found"</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="flag-name">-oHostKeyAlgorithms</td>
+          <td class="flag-val">+ssh-rsa</td>
+          <td class="flag-desc">
+            Re-enables <span class="c">ssh-rsa</span> as an accepted host key type.
+            Modern OpenSSH deprecated it because SHA-1 is weak.
+            The server identifies itself with an RSA key so we must allow it.
+            <div class="flag-why">// Without this: "no matching host key type found"</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="flag-name">-oCiphers</td>
+          <td class="flag-val">+aes128-cbc</td>
+          <td class="flag-desc">
+            Re-enables <span class="c">AES-128-CBC</span> as an allowed cipher for encrypting the session.
+            CBC mode ciphers are deprecated in modern SSH due to padding oracle attacks.
+            Old servers only offer them.
+            <div class="flag-why">// Without this: cipher negotiation would fail after handshake</div>
+          </td>
+        </tr>
+        <tr>
+          <td class="flag-name">-oPubkeyAcceptedKeyTypes</td>
+          <td class="flag-val">+ssh-rsa</td>
+          <td class="flag-desc">
+            Separately tells OpenSSH to accept <span class="c">ssh-rsa</span> for public key
+            authentication. HostKeyAlgorithms controls the server's identity key.
+            This one controls what key types are accepted for <em>user login</em>.
+            <div class="flag-why">// Both needed because they control different parts of the handshake</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── RESULT ─────────────────────────────────── -->
+  <div class="section">
+    <div class="section-label">// 04</div>
+    <div class="section-title">RESULT</div>
+
+    <div class="result-box">
+      <div class="result-icon">// DEAD END //</div>
+      <div class="result-title">NO BANNER &nbsp;·&nbsp; NO CREDS</div>
+      <br>
+      <p-text style="color:var(--muted); display:block; line-height:1.9; max-width:560px; margin:0 auto">
+        Connection established — but the server showed <span class="y">no SSH banner</span>.
+        Banners sometimes expose OS version, distro, or custom messages that aid reconnaissance.
+        This one had nothing.<br><br>
+        We also have no valid username or password for this box.
+        SSH is a <span class="r">dead end for now</span> — move to higher-priority vectors.
+      </p-text>
+      <br><br>
+      <div style="display:flex; justify-content:center; gap:20px; flex-wrap:wrap">
+        <span class="tag tag-red">no banner</span>
+        <span class="tag tag-red">no credentials</span>
+        <span class="tag tag-yellow">move to mod_ssl</span>
+        <span class="tag tag-yellow">move to samba</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ─────────────────────────────────── -->
+  <div class="footer">
+    <div class="dedsec-logo">// DEDSEC //</div>
+    ssh_notes.html &nbsp;·&nbsp; 192.168.1.184 &nbsp;·&nbsp; kioptrix level 1
+  </div>
+
+</div>
+</body>
+</html>

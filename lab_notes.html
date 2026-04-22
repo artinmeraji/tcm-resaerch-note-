@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kioptrix Lab Notes — Recon</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@700;800&display=swap');
+
+:root {
+  --bg:       #07050f;
+  --bg2:      #0d0a1a;
+  --bg3:      #120f22;
+  --panel:    #0f0c1e;
+  --border:   #1e1535;
+  --border2:  #2d1f50;
+
+  --purple:   #c084fc;
+  --purple2:  #a855f7;
+  --purple3:  #7c3aed;
+  --purple4:  #4c1d95;
+  --pink:     #f472b6;
+  --pink2:    #ec4899;
+  --pink3:    #9d174d;
+  --hot:      #ff007a;
+
+  --text:     #c4b5fd;
+  --muted:    #6d5a8a;
+  --dim:      #3b2d5c;
+
+  --cyan:     #67e8f9;
+  --yellow:   #fde68a;
+  --green:    #86efac;
+  --red:      #fca5a5;
+  --orange:   #fdba74;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  min-height: 100vh;
+}
+
+/* scanlines */
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 3px,
+    rgba(180,100,255,0.015) 3px, rgba(180,100,255,0.015) 4px
+  );
+  pointer-events:none;
+  z-index:9999;
+}
+
+/* glow pulse */
+@keyframes glow-purple {
+  0%,100% { text-shadow: 0 0 6px var(--purple3), 0 0 14px var(--purple4); }
+  50%     { text-shadow: 0 0 16px var(--purple2), 0 0 32px var(--purple3), 0 0 60px var(--purple4); }
+}
+@keyframes glow-pink {
+  0%,100% { text-shadow: 0 0 6px var(--pink3); }
+  50%     { text-shadow: 0 0 14px var(--pink2), 0 0 28px var(--pink3); }
+}
+
+/* glitch */
+@keyframes g1 {
+  0%,100%{ clip-path:inset(0 0 97% 0); transform:translate(-2px,0); }
+  25%    { clip-path:inset(40% 0 40% 0); transform:translate(2px,0); }
+  50%    { clip-path:inset(80% 0 5% 0);  transform:translate(-1px,0); }
+  75%    { clip-path:inset(15% 0 70% 0); transform:translate(3px,0); }
+}
+@keyframes g2 {
+  0%,100%{ clip-path:inset(50% 0 30% 0); transform:translate(2px,0); }
+  25%    { clip-path:inset(5%  0 85% 0); transform:translate(-2px,0); }
+  50%    { clip-path:inset(60% 0 20% 0); transform:translate(1px,0); }
+  75%    { clip-path:inset(25% 0 55% 0); transform:translate(-1px,0); }
+}
+.glitch { position:relative; display:inline-block; }
+.glitch::before,.glitch::after {
+  content:attr(data-text);
+  position:absolute; inset:0; font:inherit;
+}
+.glitch::before { color:var(--pink);   animation:g1 4s infinite linear; opacity:.6; }
+.glitch::after  { color:var(--purple); animation:g2 4s infinite linear; opacity:.6; }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.cursor { animation:blink 1s step-end infinite; color:var(--purple); }
+
+/* ── layout ───────────────────────────────────── */
+.wrapper { display:flex; min-height:100vh; }
+
+/* sidebar */
+.sidebar {
+  width:220px;
+  min-height:100vh;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  position:fixed;
+  top:0;left:0;bottom:0;
+  display:flex;
+  flex-direction:column;
+  z-index:10;
+}
+
+.sidebar-brand {
+  padding:28px 20px 22px;
+  border-bottom:1px solid var(--border);
+}
+
+.brand-tag {
+  font-size:9px;
+  letter-spacing:3px;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.brand-name {
+  font-family:'Syne',sans-serif;
+  font-size:18px;
+  font-weight:800;
+  color:var(--purple);
+  animation:glow-purple 3s ease-in-out infinite;
+  letter-spacing:1px;
+}
+
+.brand-ip {
+  font-size:11px;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+.nav-section {
+  padding:18px 16px 6px;
+  font-size:9px;
+  letter-spacing:2.5px;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+
+.nav-link {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:9px 16px;
+  margin:1px 8px;
+  border-radius:6px;
+  color:var(--muted);
+  font-size:12px;
+  text-decoration:none;
+  transition:all .15s;
+  cursor:pointer;
+}
+.nav-link:hover { background:var(--bg3); color:var(--text); }
+.nav-link.active { background:var(--bg3); color:var(--purple); }
+
+.nav-dot {
+  width:6px;height:6px;
+  border-radius:50%;
+  flex-shrink:0;
+}
+
+.sidebar-meta {
+  margin-top:auto;
+  padding:16px 20px;
+  border-top:1px solid var(--border);
+  font-size:10px;
+  color:var(--dim);
+  line-height:1.8;
+}
+
+/* main */
+.main {
+  margin-left:220px;
+  flex:1;
+  padding:40px 40px 80px;
+}
+
+/* ── topbar ───────────────────────────────────── */
+.topbar {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  margin-bottom:36px;
+  gap:20px;
+}
+
+.topbar-left .eyebrow {
+  font-size:10px;
+  letter-spacing:3px;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-bottom:8px;
+}
+
+.page-title {
+  font-family:'Syne',sans-serif;
+  font-size:32px;
+  font-weight:800;
+  color:var(--purple);
+  animation:glow-purple 3s ease-in-out infinite;
+  letter-spacing:1px;
+}
+
+.page-title span {
+  color:var(--pink);
+  animation:glow-pink 3s ease-in-out infinite;
+}
+
+.topbar-left .sub {
+  font-size:12px;
+  color:var(--muted);
+  margin-top:6px;
+}
+
+.status-row {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin-top:4px;
+}
+
+.pill {
+  display:flex;
+  align-items:center;
+  gap:7px;
+  background:var(--bg2);
+  border:1px solid var(--border);
+  padding:7px 14px;
+  border-radius:20px;
+  font-size:11px;
+  color:var(--muted);
+  white-space:nowrap;
+}
+
+.pill .dot {
+  width:6px;height:6px;
+  border-radius:50%;
+}
+
+/* ── stat cards ───────────────────────────────── */
+.stat-row {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:14px;
+  margin-bottom:28px;
+}
+
+.stat-card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:16px 18px;
+  position:relative;
+  overflow:hidden;
+}
+
+.stat-card::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:2px;
+}
+.stat-card.p::before { background:linear-gradient(90deg,var(--purple3),var(--purple)); }
+.stat-card.pk::before { background:linear-gradient(90deg,var(--pink3),var(--pink)); }
+.stat-card.r::before { background: var(--red); opacity:.5; }
+.stat-card.y::before { background: var(--yellow); opacity:.5; }
+.stat-card.g::before { background: var(--green); opacity:.5; }
+
+.stat-label {
+  font-size:9px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:10px;
+}
+
+.stat-val {
+  font-family:'Syne',sans-serif;
+  font-size:22px;
+  font-weight:800;
+}
+
+.stat-sub {
+  font-size:10px;
+  color:var(--muted);
+  margin-top:5px;
+}
+
+/* ── section titles ───────────────────────────── */
+.section-label {
+  font-size:9px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  color:var(--dim);
+  margin-bottom:5px;
+}
+
+.section-title {
+  font-family:'Syne',sans-serif;
+  font-size:15px;
+  font-weight:800;
+  color:var(--purple);
+  letter-spacing:.5px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:18px;
+}
+
+.section { margin-bottom:44px; }
+
+/* ── grids ────────────────────────────────────── */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+.span-2 { grid-column:span 2; }
+
+/* ── card ─────────────────────────────────────── */
+.card {
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.card-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 18px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+}
+
+.card-head h3 {
+  font-size:12px;
+  font-weight:700;
+  color:var(--text);
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+
+.card-body { padding:18px; }
+
+/* ── badge ────────────────────────────────────── */
+.badge {
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  padding:3px 9px;
+  border-radius:3px;
+  text-transform:uppercase;
+}
+.badge-purple { background:rgba(139,92,246,.15); color:var(--purple); border:1px solid rgba(139,92,246,.3); }
+.badge-pink   { background:rgba(236,72,153,.15);  color:var(--pink);   border:1px solid rgba(236,72,153,.3); }
+.badge-red    { background:rgba(252,165,165,.1);  color:var(--red);    border:1px solid rgba(252,165,165,.2); }
+.badge-yellow { background:rgba(253,230,138,.1);  color:var(--yellow); border:1px solid rgba(253,230,138,.2); }
+.badge-green  { background:rgba(134,239,172,.1);  color:var(--green);  border:1px solid rgba(134,239,172,.2); }
+.badge-muted  { background:rgba(109,90,138,.1);   color:var(--muted);  border:1px solid rgba(109,90,138,.2); }
+
+/* ── terminal ─────────────────────────────────── */
+.terminal {
+  background:#000;
+  border:1px solid var(--border);
+  border-radius:6px;
+  overflow:hidden;
+}
+
+.t-bar {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:9px 12px;
+  background:#0a0a0a;
+  border-bottom:1px solid var(--border);
+}
+.t-bar .d { width:9px;height:9px;border-radius:50%; }
+.d1{background:#ff5f57;} .d2{background:#ffbd2e;} .d3{background:#28c840;}
+.t-bar .lbl { margin-left:auto; font-size:10px; letter-spacing:1px; color:var(--dim); }
+
+.t-body {
+  padding:14px 16px;
+  line-height:1.9;
+  font-size:12px;
+}
+
+.tp { color:var(--purple); }
+.tpk{ color:var(--pink); }
+.tc { color:var(--cyan); }
+.tg { color:var(--green); }
+.tr { color:var(--red); }
+.ty { color:var(--yellow); }
+.to { color:var(--orange); }
+.tm { color:var(--muted); }
+.tw { color:#e5e5e5; }
+.ti { color:var(--dim); }
+.prompt { color:var(--muted); }
+.user   { color:var(--purple); }
+
+/* ── callout ──────────────────────────────────── */
+.callout {
+  display:flex;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:6px;
+  margin:12px 0;
+  line-height:1.7;
+  font-size:12px;
+}
+.callout-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+.callout-body strong { display:block; margin-bottom:3px; font-size:12px; color:var(--text); }
+.callout-body p { color:var(--muted); }
+
+.callout-purple { background:rgba(139,92,246,.07); border-left:3px solid var(--purple3); }
+.callout-pink   { background:rgba(236,72,153,.07);  border-left:3px solid var(--pink2); }
+.callout-red    { background:rgba(252,165,165,.06); border-left:3px solid #ef4444; }
+.callout-yellow { background:rgba(253,230,138,.06); border-left:3px solid #ca8a04; }
+.callout-cyan   { background:rgba(103,232,249,.06); border-left:3px solid #0891b2; }
+
+/* ── port table ───────────────────────────────── */
+.port-table { width:100%; border-collapse:collapse; }
+.port-table th {
+  text-align:left;
+  font-size:9px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--dim);
+  padding:0 14px 10px 0;
+  border-bottom:1px solid var(--border);
+}
+.port-table td {
+  padding:10px 14px 10px 0;
+  font-size:11px;
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.port-table tr:last-child td { border-bottom:none; }
+.port-num { color:var(--purple); font-weight:700; }
+.port-open{ color:var(--green); }
+.port-svc { color:var(--pink); }
+.port-ver { color:var(--muted); font-size:10px; }
+
+/* ── info rows ────────────────────────────────── */
+.info-row {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:9px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px;
+}
+.info-row:last-child { border-bottom:none; }
+.info-key { color:var(--muted); }
+.info-val { color:var(--text); text-align:right; }
+
+/* ── finding item ─────────────────────────────── */
+.finding {
+  display:flex;
+  gap:14px;
+  padding:14px;
+  background:var(--bg3);
+  border:1px solid var(--border);
+  border-radius:6px;
+  margin-bottom:10px;
+  transition:border-color .15s;
+}
+.finding:hover { border-color:var(--border2); }
+
+.finding-icon {
+  width:34px;height:34px;
+  border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;
+  flex-shrink:0;
+}
+.fi-purple { background:rgba(139,92,246,.15); }
+.fi-pink   { background:rgba(236,72,153,.15); }
+.fi-red    { background:rgba(252,165,165,.12); }
+.fi-yellow { background:rgba(253,230,138,.12); }
+
+.finding-body h4 { font-size:12px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.finding-body p  { font-size:11px; color:var(--muted); line-height:1.6; }
+
+/* ── searchsploit results ─────────────────────── */
+.sploit-row {
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+  padding:11px 0;
+  border-bottom:1px solid var(--border);
+  font-size:11px;
+}
+.sploit-row:last-child { border-bottom:none; }
+.sploit-id { color:var(--purple); white-space:nowrap; flex-shrink:0; width:60px; }
+.sploit-title { color:var(--text); flex:1; line-height:1.5; }
+.sploit-type { color:var(--muted); white-space:nowrap; }
+
+/* ── footer ───────────────────────────────────── */
+.footer {
+  text-align:center;
+  padding:28px 0;
+  border-top:1px solid var(--border);
+  color:var(--dim);
+  font-size:10px;
+  letter-spacing:2px;
+}
+.footer-brand {
+  font-family:'Syne',sans-serif;
+  font-size:14px;
+  font-weight:800;
+  color:var(--purple3);
+  letter-spacing:5px;
+  margin-bottom:6px;
+  animation:glow-purple 4s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- ── SIDEBAR ──────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-tag">// lab notes</div>
+    <div class="brand-name"><span class="glitch" data-text="KIOPTRIX">KIOPTRIX</span></div>
+    <div class="brand-ip">192.168.57.134 · 22:58</div>
+  </div>
+
+  <div class="nav-section">Sections</div>
+  <a class="nav-link active"><div class="nav-dot" style="background:var(--purple)"></div>Overview</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--pink)"></div>Web Services</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--orange)"></div>SMB / Samba</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--red)"></div>Findings</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--yellow)"></div>searchsploit</a>
+
+  <div class="nav-section">Files</div>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--dim)"></div>nmap scan</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--dim)"></div>dashboard.html</a>
+  <a class="nav-link"><div class="nav-dot" style="background:var(--dim)"></div>ssh_notes.html</a>
+
+  <div class="sidebar-meta">
+    OS · Linux 2.4.x RedHat<br>
+    MAC · 08:00:27:AF:60:FF<br>
+    VM · VirtualBox
+  </div>
+</aside>
+
+<!-- ── MAIN ─────────────────────────────────── -->
+<main class="main">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="eyebrow">// reconnaissance · educational lab</div>
+      <div class="page-title">Lab <span>Notes</span></div>
+      <div class="sub">Authorized research — Kioptrix Level 1 · version documentation</div>
+    </div>
+    <div>
+      <div class="status-row">
+        <div class="pill"><div class="dot" style="background:var(--green);box-shadow:0 0 5px var(--green)"></div>Host Up</div>
+        <div class="pill"><div class="dot" style="background:var(--purple)"></div>5 Services</div>
+        <div class="pill"><div class="dot" style="background:var(--pink)"></div>2 Critical</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- stat row -->
+  <div class="stat-row">
+    <div class="stat-card p">
+      <div class="stat-label">Open Ports</div>
+      <div class="stat-val" style="color:var(--purple)">5</div>
+      <div class="stat-sub">TCP · active</div>
+    </div>
+    <div class="stat-card pk">
+      <div class="stat-label">Apache</div>
+      <div class="stat-val" style="color:var(--pink);font-size:16px;margin-top:4px">1.3.20</div>
+      <div class="stat-sub">legacy · 2001</div>
+    </div>
+    <div class="stat-card r">
+      <div class="stat-label">mod_ssl</div>
+      <div class="stat-val" style="color:var(--red);font-size:16px;margin-top:4px">2.8.4</div>
+      <div class="stat-sub">CVE-2002-0082</div>
+    </div>
+    <div class="stat-card y">
+      <div class="stat-label">Samba</div>
+      <div class="stat-val" style="color:var(--yellow);font-size:16px;margin-top:4px">2.2.1a</div>
+      <div class="stat-sub">CVE-2003-0201</div>
+    </div>
+    <div class="stat-card g">
+      <div class="stat-label">OpenSSL</div>
+      <div class="stat-val" style="color:var(--green);font-size:16px;margin-top:4px">0.9.6b</div>
+      <div class="stat-sub">EOL · deprecated</div>
+    </div>
+  </div>
+
+  <!-- ── PORT OVERVIEW ──────────────────────── -->
+  <div class="section" id="overview">
+    <div class="section-label">// 01</div>
+    <div class="section-title">Discovered Services</div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>📡 Port Scan — 192.168.57.134</h3>
+        <span class="badge badge-purple">5 open</span>
+      </div>
+      <div class="card-body" style="padding:0 18px">
+        <table class="port-table">
+          <thead>
+            <tr>
+              <th>Port</th><th>State</th><th>Service</th><th>Version / Notes</th><th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="port-num">22/tcp</td>
+              <td class="port-open">open</td>
+              <td class="port-svc">ssh</td>
+              <td class="port-ver">OpenSSH 2.9p2 · Protocol 1.99 · SSHv1</td>
+              <td><span class="badge badge-yellow">MEDIUM</span></td>
+            </tr>
+            <tr>
+              <td class="port-num">80/tcp</td>
+              <td class="port-open">open</td>
+              <td class="port-svc">http</td>
+              <td class="port-ver">Apache 1.3.20 · mod_ssl 2.8.4 · OpenSSL 0.9.6b · TRACE enabled</td>
+              <td><span class="badge badge-red">CRITICAL</span></td>
+            </tr>
+            <tr>
+              <td class="port-num">111/tcp</td>
+              <td class="port-open">open</td>
+              <td class="port-svc">rpcbind</td>
+              <td class="port-ver">RPC #100000 · v2 · potential NFS exposure</td>
+              <td><span class="badge badge-yellow">MEDIUM</span></td>
+            </tr>
+            <tr>
+              <td class="port-num">139/tcp</td>
+              <td class="port-open">open</td>
+              <td class="port-svc">netbios-ssn</td>
+              <td class="port-ver">Samba 2.2.1a · SMB1 only · workgroup MYGROUP</td>
+              <td><span class="badge badge-red">CRITICAL</span></td>
+            </tr>
+            <tr>
+              <td class="port-num">443/tcp</td>
+              <td class="port-open">open</td>
+              <td class="port-svc">ssl/https</td>
+              <td class="port-ver">Apache 1.3.20 · SSLv2 · cert expired 2010</td>
+              <td><span class="badge badge-red">CRITICAL</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WEB SERVICES ───────────────────────── -->
+  <div class="section" id="web">
+    <div class="section-label">// 02</div>
+    <div class="section-title">Web Service Notes — Port 80 / 443</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3>🌐 Server Stack</h3>
+          <span class="badge badge-red">legacy</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="info-key">Web Server</span>
+            <span class="info-val" style="color:var(--pink)">Apache httpd 1.3.20</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Platform</span>
+            <span class="info-val">Unix · Red Hat Linux</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">mod_ssl</span>
+            <span class="info-val" style="color:var(--red)">2.8.4</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">OpenSSL</span>
+            <span class="info-val" style="color:var(--red)">0.9.6b</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">SSL Protocol</span>
+            <span class="info-val" style="color:var(--red)">SSLv2 enabled</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">SSL Cert</span>
+            <span class="info-val" style="color:var(--red)">Expired 2010-09-26</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Default Page</span>
+            <span class="info-val" style="color:var(--yellow)">Apache test page visible</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Webalizer</span>
+            <span class="info-val" style="color:var(--yellow)">Content exposed</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>⚠️ HTTP Method Exposure</h3>
+          <span class="badge badge-yellow">info disclosure</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="info-key">GET</span>
+            <span class="info-val"><span class="badge badge-muted">normal</span></span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">HEAD</span>
+            <span class="info-val"><span class="badge badge-muted">normal</span></span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">OPTIONS</span>
+            <span class="info-val"><span class="badge badge-muted">normal</span></span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">TRACE</span>
+            <span class="info-val"><span class="badge badge-yellow">risky</span></span>
+          </div>
+
+          <div class="callout callout-yellow" style="margin-top:14px">
+            <span class="callout-icon">⚠️</span>
+            <div class="callout-body">
+              <strong>TRACE Method Enabled</strong>
+              <p>TRACE reflects the full HTTP request back to the client. In combination with browser vulnerabilities it enables Cross-Site Tracing (XST) — stealing cookies and headers.</p>
+            </div>
+          </div>
+
+          <div class="callout callout-pink">
+            <span class="callout-icon">🔍</span>
+            <div class="callout-body">
+              <strong>Server Headers Disclose Version</strong>
+              <p>Server: header returns the full stack — Apache 1.3.20, mod_ssl version, and OpenSSL version. Attackers use this to pinpoint exactly which exploits apply.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <h3>🔒 SSLv2 — Why It Matters</h3>
+        <span class="badge badge-red">deprecated protocol</span>
+      </div>
+      <div class="card-body">
+        <div class="grid-2" style="margin-bottom:0">
+          <div>
+            <div class="callout callout-red">
+              <span class="callout-icon">🔴</span>
+              <div class="callout-body">
+                <strong>SSLv2 is cryptographically broken</strong>
+                <p>Released 1995, deprecated 2011, prohibited by RFC 6176 in 2011. Vulnerable to DROWN attack — an attacker capturing SSLv2 traffic can decrypt modern TLS sessions on the same server.</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="callout callout-purple">
+              <span class="callout-icon">🟣</span>
+              <div class="callout-body">
+                <strong>Ciphers offered by this server</strong>
+                <p>SSL2_RC4_128, SSL2_DES_64_CBC, SSL2_DES_192_EDE3_CBC, SSL2_RC2_128_CBC — all considered weak or broken by modern standards. Export-grade ciphers also present.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SMB ────────────────────────────────── -->
+  <div class="section" id="smb">
+    <div class="section-label">// 03</div>
+    <div class="section-title">SMB / Samba — Port 139</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3>🖧 Samba Research Note</h3>
+          <span class="badge badge-red">Samba 2.2.1a</span>
+        </div>
+        <div class="card-body">
+          <div class="info-row">
+            <span class="info-key">Confirmed version</span>
+            <span class="info-val" style="color:var(--red)">Samba 2.2.1a ✗</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Vulnerability range</span>
+            <span class="info-val">2.2.0 → 2.2.8</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">CVE</span>
+            <span class="info-val" style="color:var(--pink)">CVE-2003-0201</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Type</span>
+            <span class="info-val">Buffer overflow · trans2open</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Auth required</span>
+            <span class="info-val" style="color:var(--red)">None</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Platform</span>
+            <span class="info-val">x86 Linux (Rapid7 documented)</span>
+          </div>
+          <div class="info-row">
+            <span class="info-key">Anon IPC access</span>
+            <span class="info-val" style="color:var(--red)">Confirmed allowed</span>
+          </div>
+
+          <div class="callout callout-red" style="margin-top:14px">
+            <span class="callout-icon">🔴</span>
+            <div class="callout-body">
+              <strong>trans2open — historical buffer overflow</strong>
+              <p>Samba 2.2.1a is within the documented vulnerable range 2.2.0–2.2.8. Some older Red Hat systems are not vulnerable if anonymous IPC access is blocked — however anonymous login has been confirmed on this target, making it a valid research lead.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>📋 smbclient Output</h3>
+          <span class="badge badge-yellow">anon login confirmed</span>
+        </div>
+        <div class="card-body">
+          <div class="terminal">
+            <div class="t-bar">
+              <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+              <span class="lbl">smbclient</span>
+            </div>
+            <div class="t-body">
+              <div><span class="prompt">$ </span><span class="tp">smbclient -L \\\\192.168.57.134 -N</span></div>
+              <br>
+              <div><span class="tm">Server does not support EXTENDED_SECURITY</span></div>
+              <div><span class="tg">Anonymous login successful</span></div>
+              <br>
+              <div><span class="tm">&nbsp;&nbsp;&nbsp;Sharename&nbsp;&nbsp;&nbsp;&nbsp;Type&nbsp;&nbsp;&nbsp;&nbsp;Comment</span></div>
+              <div><span class="tm">&nbsp;&nbsp;&nbsp;---------&nbsp;&nbsp;&nbsp;&nbsp;----&nbsp;&nbsp;&nbsp;&nbsp;-------</span></div>
+              <div><span class="tg">&nbsp;&nbsp;&nbsp;IPC$</span><span class="tm">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC Service (Samba Server)</span></div>
+              <div><span class="tg">&nbsp;&nbsp;&nbsp;ADMIN$</span><span class="tm">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;IPC Service (Samba Server)</span></div>
+              <br>
+              <div><span class="tm">&nbsp;&nbsp;&nbsp;Workgroup&nbsp;&nbsp;&nbsp;&nbsp;Master</span></div>
+              <div><span class="tg">&nbsp;&nbsp;&nbsp;MYGROUP&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;KIOPTRIX</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── KEY FINDINGS ───────────────────────── -->
+  <div class="section" id="findings">
+    <div class="section-label">// 04</div>
+    <div class="section-title">Key Findings — Information Disclosure</div>
+
+    <div class="finding">
+      <div class="finding-icon fi-red">🔴</div>
+      <div class="finding-body">
+        <h4>Server Headers — Full Stack Disclosure</h4>
+        <p>HTTP response headers reveal Apache 1.3.20, mod_ssl 2.8.4, OpenSSL 0.9.6b, and Red Hat Linux. Attackers do not need to guess — the server announces exactly what is running and which CVEs apply.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-icon fi-pink">🟣</div>
+      <div class="finding-body">
+        <h4>Webalizer Stats Page Exposed</h4>
+        <p>Webalizer web usage statistics are publicly accessible. This leaks internal traffic patterns, referrer data, and may expose directory structure or usernames in URL paths.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-icon fi-yellow">⚠️</div>
+      <div class="finding-body">
+        <h4>Default Apache Test Page Visible</h4>
+        <p>The default Red Hat Apache test page is showing on port 80 — no custom site deployed. This confirms a default installation with no hardening applied, increasing confidence that other defaults are also in place.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-icon fi-purple">🔵</div>
+      <div class="finding-body">
+        <h4>TRACE Method Enabled on HTTP</h4>
+        <p>HTTP TRACE is enabled. Nmap flagged this as potentially risky. In combination with other client-side vulnerabilities, it can be used for Cross-Site Tracing (XST) to steal session tokens.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-icon fi-red">🔐</div>
+      <div class="finding-body">
+        <h4>SSLv2 Enabled — DROWN Attack Surface</h4>
+        <p>Port 443 accepts SSLv2 connections with broken cipher suites including export-grade RC4 and DES variants. SSLv2 is prohibited by RFC 6176. Presence on the same server as HTTPS creates DROWN attack conditions.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── SEARCHSPLOIT ────────────────────────── -->
+  <div class="section" id="searchsploit">
+    <div class="section-label">// 05</div>
+    <div class="section-title">Research Correlation — searchsploit</div>
+
+    <div class="callout callout-purple" style="margin-bottom:18px">
+      <span class="callout-icon">🟣</span>
+      <div class="callout-body">
+        <strong>Methodology</strong>
+        <p>searchsploit results confirm multiple historical public entries matching the exact software versions found on this target. This supports the reconnaissance finding that the target is running legacy software versions commonly documented in vulnerability research. All entries listed are for educational analysis in an authorized lab.</p>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head">
+          <h3>🔍 Apache mod_ssl 2.8.x</h3>
+          <span class="badge badge-red">CVE-2002-0082</span>
+        </div>
+        <div class="card-body">
+          <div class="terminal">
+            <div class="t-bar">
+              <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+              <span class="lbl">searchsploit</span>
+            </div>
+            <div class="t-body">
+              <div><span class="prompt">$ </span><span class="tp">searchsploit mod_ssl 2.8</span></div>
+              <br>
+              <div><span class="tg">Apache mod_ssl &lt; 2.8.7 OpenSSL</span></div>
+              <div><span class="tm">  Remote Buffer Overflow</span></div>
+              <div><span class="ty">  exploits/unix/remote/764.c</span></div>
+              <br>
+              <div><span class="tg">Apache mod_ssl 2.8.x - Off-by-One</span></div>
+              <div><span class="tm">  Multiple Exploits (OpenFuck)</span></div>
+              <div><span class="ty">  exploits/unix/remote/47080.c</span></div>
+            </div>
+          </div>
+          <div class="callout callout-red" style="margin-top:12px">
+            <span class="callout-icon">📌</span>
+            <div class="callout-body">
+              <strong>Target version 2.8.4 falls within documented range</strong>
+              <p>mod_ssl &lt; 2.8.7 — this target is within scope. OpenFuck (764.c / 47080.c) is the historically documented exploit for this version combination.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>🔍 Samba 2.2.x</h3>
+          <span class="badge badge-red">CVE-2003-0201</span>
+        </div>
+        <div class="card-body">
+          <div class="terminal">
+            <div class="t-bar">
+              <div class="d d1"></div><div class="d d2"></div><div class="d d3"></div>
+              <span class="lbl">searchsploit</span>
+            </div>
+            <div class="t-body">
+              <div><span class="prompt">$ </span><span class="tp">searchsploit samba 2.2</span></div>
+              <br>
+              <div><span class="tg">Samba 2.2.x - Remote Buffer Overflow</span></div>
+              <div><span class="tm">  trans2open · x86 Linux</span></div>
+              <div><span class="ty">  exploits/linux/remote/7.pl</span></div>
+              <br>
+              <div><span class="tg">Samba &lt; 2.2.8 (Linux/BSD)</span></div>
+              <div><span class="tm">  Remote Code Execution</span></div>
+              <div><span class="ty">  exploits/multiple/remote/10.c</span></div>
+            </div>
+          </div>
+          <div class="callout callout-red" style="margin-top:12px">
+            <span class="callout-icon">📌</span>
+            <div class="callout-body">
+              <strong>Samba 2.2.1a confirmed in vulnerable range</strong>
+              <p>Rapid7 documents this as affecting x86 Linux targets — matching this Red Hat system. Anonymous IPC access confirmed, satisfying the pre-condition for exploitation.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-head">
+        <h3>📊 Research Summary — Version Correlation</h3>
+        <span class="badge badge-purple">educational analysis</span>
+      </div>
+      <div class="card-body">
+        <div class="sploit-row">
+          <span class="sploit-id" style="color:var(--red)">HIGH</span>
+          <span class="sploit-title">Apache 1.3.20 + mod_ssl 2.8.4 — OpenFuck remote buffer overflow · port 443 · CVE-2002-0082</span>
+          <span class="sploit-type"><span class="badge badge-red">remote root</span></span>
+        </div>
+        <div class="sploit-row">
+          <span class="sploit-id" style="color:var(--red)">HIGH</span>
+          <span class="sploit-title">Samba 2.2.1a — trans2open buffer overflow · port 139 · CVE-2003-0201 · anon access confirmed</span>
+          <span class="sploit-type"><span class="badge badge-red">remote root</span></span>
+        </div>
+        <div class="sploit-row">
+          <span class="sploit-id" style="color:var(--yellow)">MED</span>
+          <span class="sploit-title">OpenSSH 2.9p2 — SSHv1 protocol support · legacy key exchange · historical CVEs for pre-3.x</span>
+          <span class="sploit-type"><span class="badge badge-yellow">brute / cve</span></span>
+        </div>
+        <div class="sploit-row">
+          <span class="sploit-id" style="color:var(--yellow)">MED</span>
+          <span class="sploit-title">rpcbind port 111 — potential NFS share exposure · check showmount · file read / write path</span>
+          <span class="sploit-type"><span class="badge badge-yellow">recon</span></span>
+        </div>
+        <div class="sploit-row">
+          <span class="sploit-id" style="color:var(--muted)">INFO</span>
+          <span class="sploit-title">HTTP TRACE enabled · SSLv2 on 443 · full version disclosure via server headers · Webalizer exposed</span>
+          <span class="sploit-type"><span class="badge badge-muted">info disc.</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div class="footer">
+    <div class="footer-brand">KIOPTRIX</div>
+    lab_notes.html · 192.168.57.134 · authorized research · educational use only
+  </div>
+
+</main>
+</div>
+</body>
+</html>

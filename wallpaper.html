@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8"/>
+<title>Wallpaper</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#07050f; }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+
+let W, H;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── palette ──────────────────────────────────────────────────
+const COL = {
+  bg:      '#07050f',
+  purple:  '#c084fc',
+  purple2: '#a855f7',
+  purple3: '#7c3aed',
+  purple4: '#4c1d95',
+  pink:    '#f472b6',
+  pink2:   '#ec4899',
+  pink3:   '#9d174d',
+  dim:     '#1e1535',
+  muted:   '#3b2d5c',
+  cyan:    '#67e8f9',
+  grid:    'rgba(124,58,237,0.07)',
+};
+
+// ── matrix rain ───────────────────────────────────────────────
+const CHARS = '01アイウエオカキクケコサシスセソタチツテトナニヌネノ∑∆∇≈≡∞⌀⌁⊕⊗░▒▓█▄▀■□▪▫◆◇●○';
+
+const FONT_SIZE = 14;
+let columns = [];
+
+function initColumns() {
+  columns = [];
+  const count = Math.floor(W / FONT_SIZE);
+  for (let i = 0; i < count; i++) {
+    columns.push({
+      x:     i * FONT_SIZE,
+      y:     Math.random() * H * -1,
+      speed: 0.4 + Math.random() * 1.2,
+      len:   Math.floor(8 + Math.random() * 20),
+      chars: [],
+      tick:  0,
+      col:   Math.random() < 0.4 ? 'pink' : 'purple',
+    });
+  }
+}
+initColumns();
+
+function drawMatrix() {
+  columns.forEach(col => {
+    col.tick++;
+    if (col.tick % 4 === 0) {
+      col.chars.unshift(CHARS[Math.floor(Math.random() * CHARS.length)]);
+      if (col.chars.length > col.len) col.chars.pop();
+    }
+    col.y += col.speed;
+    if (col.y > H + col.len * FONT_SIZE) {
+      col.y     = -col.len * FONT_SIZE;
+      col.speed = 0.4 + Math.random() * 1.2;
+      col.len   = Math.floor(8 + Math.random() * 20);
+      col.col   = Math.random() < 0.4 ? 'pink' : 'purple';
+    }
+
+    col.chars.forEach((ch, i) => {
+      const alpha = 1 - i / col.len;
+      const y     = col.y - i * FONT_SIZE;
+      if (y < 0 || y > H) return;
+
+      let color;
+      if (i === 0) {
+        color = '#ffffff';
+      } else if (col.col === 'pink') {
+        color = `rgba(244,114,182,${alpha * 0.8})`;
+      } else {
+        color = `rgba(192,132,252,${alpha * 0.8})`;
+      }
+
+      ctx.fillStyle = color;
+      ctx.font      = `${FONT_SIZE}px "JetBrains Mono", monospace`;
+      ctx.fillText(ch, col.x, y);
+    });
+  });
+}
+
+// ── grid ──────────────────────────────────────────────────────
+function drawGrid() {
+  const step = 60;
+  ctx.strokeStyle = COL.grid;
+  ctx.lineWidth   = 0.5;
+  ctx.beginPath();
+  for (let x = 0; x < W; x += step) {
+    ctx.moveTo(x, 0); ctx.lineTo(x, H);
+  }
+  for (let y = 0; y < H; y += step) {
+    ctx.moveTo(0, y); ctx.lineTo(W, y);
+  }
+  ctx.stroke();
+}
+
+// ── circuit nodes ─────────────────────────────────────────────
+const NODES = [];
+for (let i = 0; i < 28; i++) {
+  NODES.push({
+    x:    Math.random() * 1,
+    y:    Math.random() * 1,
+    r:    2 + Math.random() * 3,
+    col:  Math.random() < 0.5 ? COL.purple2 : COL.pink2,
+    phase: Math.random() * Math.PI * 2,
+  });
+}
+
+function drawNodes(t) {
+  // connecting lines between nearby nodes
+  for (let i = 0; i < NODES.length; i++) {
+    for (let j = i + 1; j < NODES.length; j++) {
+      const ax = NODES[i].x * W, ay = NODES[i].y * H;
+      const bx = NODES[j].x * W, by = NODES[j].y * H;
+      const dist = Math.hypot(ax - bx, ay - by);
+      if (dist < 220) {
+        const alpha = (1 - dist / 220) * 0.25;
+        ctx.strokeStyle = `rgba(168,85,247,${alpha})`;
+        ctx.lineWidth   = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.stroke();
+      }
+    }
+  }
+  // nodes
+  NODES.forEach(n => {
+    const pulse = 0.5 + 0.5 * Math.sin(t * 0.002 + n.phase);
+    const x = n.x * W, y = n.y * H;
+    // glow
+    const g = ctx.createRadialGradient(x, y, 0, x, y, n.r * 6);
+    g.addColorStop(0, n.col + '88');
+    g.addColorStop(1, 'transparent');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.arc(x, y, n.r * 6 * pulse, 0, Math.PI * 2);
+    ctx.fill();
+    // dot
+    ctx.fillStyle = n.col;
+    ctx.beginPath();
+    ctx.arc(x, y, n.r, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+// ── center piece ──────────────────────────────────────────────
+let glitchTimer = 0;
+let glitchOn    = false;
+
+function drawCenter(t) {
+  const cx = W / 2;
+  const cy = H / 2;
+
+  // outer ring glow
+  const ringR = Math.min(W, H) * 0.22;
+  const rg = ctx.createRadialGradient(cx, cy, ringR * 0.7, cx, cy, ringR * 1.3);
+  rg.addColorStop(0, 'rgba(124,58,237,0.18)');
+  rg.addColorStop(1, 'transparent');
+  ctx.fillStyle = rg;
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR * 1.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // rotating dashes ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(t * 0.0003);
+  ctx.strokeStyle = 'rgba(192,132,252,0.3)';
+  ctx.lineWidth   = 1;
+  ctx.setLineDash([6, 14]);
+  ctx.beginPath();
+  ctx.arc(0, 0, ringR, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // counter-rotating ring
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(-t * 0.0005);
+  ctx.strokeStyle = 'rgba(236,72,153,0.2)';
+  ctx.lineWidth   = 0.8;
+  ctx.setLineDash([3, 20]);
+  ctx.beginPath();
+  ctx.arc(0, 0, ringR * 0.82, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // center dark circle (mask for text)
+  const bg = ctx.createRadialGradient(cx, cy, 0, cx, cy, ringR * 0.65);
+  bg.addColorStop(0, 'rgba(7,5,15,0.97)');
+  bg.addColorStop(1, 'rgba(7,5,15,0.6)');
+  ctx.fillStyle = bg;
+  ctx.beginPath();
+  ctx.arc(cx, cy, ringR * 0.65, 0, Math.PI * 2);
+  ctx.fill();
+
+  // glitch trigger
+  glitchTimer += 16;
+  if (glitchTimer > 3000 + Math.random() * 4000) {
+    glitchOn    = true;
+    glitchTimer = 0;
+    setTimeout(() => glitchOn = false, 80 + Math.random() * 120);
+  }
+
+  // main title
+  const fontSize = Math.min(W, H) * 0.1;
+  ctx.save();
+
+  if (glitchOn) {
+    // glitch shift
+    ctx.fillStyle = COL.pink;
+    ctx.font      = `900 ${fontSize}px "Syne", "Inter", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('HACK', cx - 3, cy - 2);
+
+    ctx.fillStyle = COL.cyan;
+    ctx.fillText('HACK', cx + 3, cy + 2);
+  }
+
+  // purple glow layer
+  ctx.shadowColor = COL.purple;
+  ctx.shadowBlur  = 40;
+  ctx.fillStyle   = COL.purple;
+  ctx.font        = `900 ${fontSize}px "Syne", "Inter", sans-serif`;
+  ctx.textAlign   = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('HACK', cx, cy);
+
+  // white top layer
+  ctx.shadowBlur  = 0;
+  const grad = ctx.createLinearGradient(cx - 100, cy - fontSize/2, cx + 100, cy + fontSize/2);
+  grad.addColorStop(0, '#ffffff');
+  grad.addColorStop(0.5, COL.purple);
+  grad.addColorStop(1, COL.pink);
+  ctx.fillStyle = grad;
+  ctx.fillText('HACK', cx, cy);
+  ctx.restore();
+
+  // subtitle
+  ctx.save();
+  ctx.font      = `400 ${Math.min(W,H)*0.016}px "JetBrains Mono", monospace`;
+  ctx.fillStyle = 'rgba(192,132,252,0.7)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '6px';
+  ctx.fillText('// MODERN  HACKING  VIBES //', cx, cy + fontSize * 0.72);
+  ctx.restore();
+
+  // corner labels
+  const lFont = `${Math.min(W,H)*0.013}px "JetBrains Mono", monospace`;
+  ctx.font        = lFont;
+  ctx.fillStyle   = 'rgba(109,90,138,0.6)';
+  ctx.textAlign   = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('TARGET // 192.168.57.134', 28, 28);
+  ctx.fillText('KIOPTRIX LEVEL 1', 28, 48);
+
+  ctx.textAlign = 'right';
+  ctx.fillText('AUTHORIZED LAB RESEARCH', W - 28, 28);
+  ctx.fillText('RECON // ACTIVE', W - 28, 48);
+
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'bottom';
+  ctx.fillText('SSH 22  ·  HTTP 80  ·  HTTPS 443  ·  SMB 139  ·  RPC 111', 28, H - 28);
+
+  ctx.textAlign = 'right';
+  const now = new Date();
+  ctx.fillText(
+    now.toISOString().replace('T',' ').slice(0,19) + ' UTC',
+    W - 28, H - 28
+  );
+
+  // horizontal lines top/bottom
+  ctx.strokeStyle = 'rgba(124,58,237,0.25)';
+  ctx.lineWidth   = 0.8;
+  ctx.beginPath();
+  ctx.moveTo(0, 70); ctx.lineTo(W, 70);
+  ctx.moveTo(0, H - 70); ctx.lineTo(W, H - 70);
+  ctx.stroke();
+
+  // status dots bottom right
+  const dots = [
+    { label:'APACHE 1.3.20', col:'#fca5a5' },
+    { label:'SAMBA 2.2.1a',  col:'#fca5a5' },
+    { label:'OpenSSH 2.9p2', col:'#fde68a' },
+    { label:'SSLv2 OPEN',    col:'#fca5a5' },
+  ];
+  dots.forEach((d, i) => {
+    const bx = W - 28 - i * 160;
+    const by = H - 100;
+    ctx.beginPath();
+    ctx.arc(bx, by, 4, 0, Math.PI * 2);
+    ctx.fillStyle = d.col;
+    ctx.fill();
+    ctx.font      = `${Math.min(W,H)*0.011}px "JetBrains Mono", monospace`;
+    ctx.fillStyle = 'rgba(196,181,253,0.5)';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(d.label, bx - 10, by);
+  });
+}
+
+// ── scanlines ─────────────────────────────────────────────────
+function drawScanlines() {
+  for (let y = 0; y < H; y += 4) {
+    ctx.fillStyle = 'rgba(0,0,0,0.06)';
+    ctx.fillRect(0, y, W, 1);
+  }
+}
+
+// ── vignette ──────────────────────────────────────────────────
+function drawVignette() {
+  const v = ctx.createRadialGradient(W/2, H/2, H*0.3, W/2, H/2, H*0.85);
+  v.addColorStop(0, 'transparent');
+  v.addColorStop(1, 'rgba(7,5,15,0.72)');
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// ── render loop ───────────────────────────────────────────────
+function draw(t) {
+  // background
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  drawGrid();
+  drawMatrix();
+  drawNodes(t);
+  drawCenter(t);
+  drawVignette();
+  drawScanlines();
+
+  requestAnimationFrame(draw);
+}
+
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

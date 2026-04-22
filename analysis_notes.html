@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kioptrix — Analysis Notes</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Syne:wght@700;800&display=swap');
+
+:root {
+  --bg:      #07050f;
+  --bg2:     #0d0a1a;
+  --bg3:     #120f22;
+  --panel:   #0f0c1e;
+  --border:  #1e1535;
+  --border2: #2d1f50;
+
+  --purple:  #c084fc;
+  --purple2: #a855f7;
+  --purple3: #7c3aed;
+  --purple4: #4c1d95;
+  --pink:    #f472b6;
+  --pink2:   #ec4899;
+  --pink3:   #9d174d;
+
+  --text:    #c4b5fd;
+  --muted:   #6d5a8a;
+  --dim:     #3b2d5c;
+
+  --cyan:    #67e8f9;
+  --yellow:  #fde68a;
+  --green:   #86efac;
+  --red:     #fca5a5;
+  --orange:  #fdba74;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background:var(--bg);
+  color:var(--text);
+  font-family:'JetBrains Mono',monospace;
+  font-size:13px;
+  min-height:100vh;
+  display:flex;
+}
+
+body::after {
+  content:'';
+  position:fixed;
+  inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(180,100,255,.015) 3px,rgba(180,100,255,.015) 4px);
+  pointer-events:none;
+  z-index:9999;
+}
+
+@keyframes glow-purple {
+  0%,100%{ text-shadow:0 0 6px var(--purple3),0 0 14px var(--purple4); }
+  50%    { text-shadow:0 0 16px var(--purple2),0 0 32px var(--purple3),0 0 60px var(--purple4); }
+}
+@keyframes glow-pink {
+  0%,100%{ text-shadow:0 0 6px var(--pink3); }
+  50%    { text-shadow:0 0 14px var(--pink2),0 0 28px var(--pink3); }
+}
+@keyframes g1 {
+  0%,100%{ clip-path:inset(0 0 97% 0);  transform:translate(-2px,0); }
+  25%    { clip-path:inset(40% 0 40% 0); transform:translate(2px,0); }
+  50%    { clip-path:inset(80% 0 5% 0);  transform:translate(-1px,0); }
+  75%    { clip-path:inset(15% 0 70% 0); transform:translate(3px,0); }
+}
+@keyframes g2 {
+  0%,100%{ clip-path:inset(50% 0 30% 0); transform:translate(2px,0); }
+  25%    { clip-path:inset(5%  0 85% 0);  transform:translate(-2px,0); }
+  50%    { clip-path:inset(60% 0 20% 0);  transform:translate(1px,0); }
+  75%    { clip-path:inset(25% 0 55% 0);  transform:translate(-1px,0); }
+}
+.glitch { position:relative; display:inline-block; }
+.glitch::before,.glitch::after { content:attr(data-text); position:absolute; inset:0; font:inherit; }
+.glitch::before { color:var(--pink);   animation:g1 4s infinite linear; opacity:.6; }
+.glitch::after  { color:var(--purple); animation:g2 4s infinite linear; opacity:.6; }
+
+/* ── sidebar ────────────────────────────────── */
+.sidebar {
+  width:220px;
+  min-height:100vh;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  position:fixed;
+  top:0;left:0;bottom:0;
+  display:flex;
+  flex-direction:column;
+  z-index:10;
+}
+.sb-brand {
+  padding:28px 20px 22px;
+  border-bottom:1px solid var(--border);
+}
+.sb-tag { font-size:9px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:8px; }
+.sb-name {
+  font-family:'Syne',sans-serif;
+  font-size:18px; font-weight:800;
+  color:var(--purple);
+  animation:glow-purple 3s ease-in-out infinite;
+}
+.sb-sub { font-size:10px; color:var(--muted); margin-top:5px; }
+
+.nav-sec { padding:18px 16px 6px; font-size:9px; letter-spacing:2.5px; text-transform:uppercase; color:var(--dim); }
+.nav-link {
+  display:flex; align-items:center; gap:10px;
+  padding:8px 16px; margin:1px 8px; border-radius:6px;
+  color:var(--muted); font-size:11px; text-decoration:none;
+  transition:all .15s; cursor:pointer;
+}
+.nav-link:hover { background:var(--bg3); color:var(--text); }
+.nav-link.active { background:var(--bg3); color:var(--purple); }
+.ndot { width:5px;height:5px;border-radius:50%;flex-shrink:0; }
+
+.sb-footer {
+  margin-top:auto;
+  padding:16px 20px;
+  border-top:1px solid var(--border);
+  font-size:10px; color:var(--dim); line-height:1.8;
+}
+
+/* ── main ───────────────────────────────────── */
+.main { margin-left:220px; flex:1; padding:40px 44px 80px; }
+
+/* ── topbar ─────────────────────────────────── */
+.topbar { margin-bottom:40px; }
+.eyebrow { font-size:10px; letter-spacing:3px; color:var(--muted); text-transform:uppercase; margin-bottom:10px; }
+.page-title {
+  font-family:'Syne',sans-serif;
+  font-size:34px; font-weight:800;
+  color:var(--purple);
+  animation:glow-purple 3s ease-in-out infinite;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+.page-title span { color:var(--pink); animation:glow-pink 3s ease-in-out infinite; }
+.page-sub { font-size:12px; color:var(--muted); }
+
+/* ── section ────────────────────────────────── */
+.section { margin-bottom:48px; }
+.section-label { font-size:9px; letter-spacing:3px; text-transform:uppercase; color:var(--dim); margin-bottom:5px; }
+.section-title {
+  font-family:'Syne',sans-serif;
+  font-size:15px; font-weight:800;
+  color:var(--purple); letter-spacing:.5px;
+  padding-bottom:12px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:20px;
+}
+
+/* ── grids ──────────────────────────────────── */
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+.grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:16px; }
+
+/* ── card ───────────────────────────────────── */
+.card { background:var(--panel); border:1px solid var(--border); border-radius:8px; overflow:hidden; margin-bottom:16px; }
+.card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:13px 18px;
+  border-bottom:1px solid var(--border);
+  background:var(--bg2);
+}
+.card-head h3 { font-size:12px; font-weight:700; color:var(--text); }
+.card-body { padding:20px; }
+
+/* ── badge ──────────────────────────────────── */
+.badge { font-size:9px; font-weight:700; letter-spacing:1.5px; padding:3px 9px; border-radius:3px; text-transform:uppercase; }
+.b-purple { background:rgba(139,92,246,.15); color:var(--purple); border:1px solid rgba(139,92,246,.3); }
+.b-pink   { background:rgba(236,72,153,.15);  color:var(--pink);   border:1px solid rgba(236,72,153,.3); }
+.b-red    { background:rgba(252,165,165,.1);  color:var(--red);    border:1px solid rgba(252,165,165,.2); }
+.b-yellow { background:rgba(253,230,138,.1);  color:var(--yellow); border:1px solid rgba(253,230,138,.2); }
+.b-green  { background:rgba(134,239,172,.1);  color:var(--green);  border:1px solid rgba(134,239,172,.2); }
+.b-muted  { background:rgba(109,90,138,.1);   color:var(--muted);  border:1px solid rgba(109,90,138,.2); }
+.b-cyan   { background:rgba(103,232,249,.1);  color:var(--cyan);   border:1px solid rgba(103,232,249,.2); }
+
+/* ── note block (main content format) ───────── */
+.note-block {
+  line-height:1.85;
+  color:var(--text);
+  font-size:13px;
+}
+.note-block p { margin-bottom:12px; }
+.note-block p:last-child { margin-bottom:0; }
+
+hl  { color:var(--purple); font-weight:700; }
+hlp { color:var(--pink);   font-weight:700; }
+hlc { color:var(--cyan); }
+hly { color:var(--yellow); }
+hlg { color:var(--green); }
+hlr { color:var(--red); }
+
+/* ── callout ────────────────────────────────── */
+.callout {
+  display:flex; gap:12px;
+  padding:14px 16px; border-radius:6px;
+  margin:14px 0; line-height:1.75; font-size:12px;
+}
+.callout-icon { font-size:15px; flex-shrink:0; margin-top:1px; }
+.callout-body strong { display:block; margin-bottom:4px; font-size:12px; color:var(--text); }
+.callout-body p { color:var(--muted); }
+.callout-body code {
+  background:var(--bg3);
+  border:1px solid var(--border);
+  padding:1px 6px; border-radius:3px;
+  font-size:11px; color:var(--purple);
+}
+
+.cal-purple { background:rgba(139,92,246,.07); border-left:3px solid var(--purple3); }
+.cal-pink   { background:rgba(236,72,153,.07); border-left:3px solid var(--pink2); }
+.cal-red    { background:rgba(252,165,165,.06); border-left:3px solid #ef4444; }
+.cal-yellow { background:rgba(253,230,138,.06); border-left:3px solid #ca8a04; }
+.cal-green  { background:rgba(134,239,172,.06); border-left:3px solid #16a34a; }
+.cal-cyan   { background:rgba(103,232,249,.06); border-left:3px solid #0891b2; }
+
+/* ── bullet list ────────────────────────────── */
+.blist { list-style:none; margin:10px 0; }
+.blist li {
+  display:flex; gap:10px;
+  padding:6px 0;
+  border-bottom:1px solid var(--border);
+  font-size:12px; line-height:1.6;
+  color:var(--muted);
+}
+.blist li:last-child { border-bottom:none; }
+.blist li::before { content:'→'; color:var(--purple); flex-shrink:0; }
+.blist li b { color:var(--text); }
+
+/* ── do / dont ──────────────────────────────── */
+.do-dont { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:4px; }
+.do-box, .dont-box {
+  border-radius:6px;
+  padding:16px;
+  font-size:12px;
+}
+.do-box   { background:rgba(134,239,172,.05); border:1px solid rgba(134,239,172,.15); }
+.dont-box { background:rgba(252,165,165,.05); border:1px solid rgba(252,165,165,.15); }
+.do-label   { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--green); margin-bottom:10px; font-weight:700; }
+.dont-label { font-size:9px; letter-spacing:2px; text-transform:uppercase; color:var(--red);   margin-bottom:10px; font-weight:700; }
+.do-item   { display:flex; gap:8px; margin-bottom:8px; color:var(--muted); line-height:1.6; }
+.do-item::before   { content:'✓'; color:var(--green); flex-shrink:0; }
+.dont-item { display:flex; gap:8px; margin-bottom:8px; color:var(--muted); line-height:1.6; }
+.dont-item::before { content:'✗'; color:var(--red); flex-shrink:0; }
+
+/* ── quote block ────────────────────────────── */
+.quote {
+  border-left:3px solid var(--purple3);
+  background:rgba(139,92,246,.06);
+  padding:14px 18px;
+  border-radius:0 6px 6px 0;
+  margin:14px 0;
+  font-size:12px;
+  color:var(--text);
+  line-height:1.75;
+  font-style:italic;
+}
+.quote cite {
+  display:block;
+  margin-top:8px;
+  font-style:normal;
+  font-size:10px;
+  color:var(--muted);
+  letter-spacing:1px;
+}
+
+/* ── table ──────────────────────────────────── */
+.data-table { width:100%; border-collapse:collapse; font-size:12px; }
+.data-table th {
+  text-align:left; font-size:9px; letter-spacing:2px;
+  text-transform:uppercase; color:var(--dim);
+  padding:0 14px 10px 0; border-bottom:1px solid var(--border);
+}
+.data-table td { padding:10px 14px 10px 0; border-bottom:1px solid var(--border); vertical-align:top; color:var(--muted); line-height:1.6; }
+.data-table td:first-child { color:var(--purple); white-space:nowrap; }
+.data-table tr:last-child td { border-bottom:none; }
+
+/* ── terminal ───────────────────────────────── */
+.terminal { background:#000; border:1px solid var(--border); border-radius:6px; overflow:hidden; margin:12px 0; }
+.t-bar { display:flex; align-items:center; gap:6px; padding:9px 12px; background:#0a0a0a; border-bottom:1px solid var(--border); }
+.t-bar .d { width:9px;height:9px;border-radius:50%; }
+.d1{background:#ff5f57;}.d2{background:#ffbd2e;}.d3{background:#28c840;}
+.t-bar .lbl { margin-left:auto; font-size:10px; letter-spacing:1px; color:var(--dim); }
+.t-body { padding:14px 16px; line-height:1.9; font-size:12px; }
+.tp{color:var(--purple);} .tpk{color:var(--pink);} .tc{color:var(--cyan);}
+.tg{color:var(--green);}  .tr{color:var(--red);}   .ty{color:var(--yellow);}
+.tm{color:var(--muted);}  .tw{color:#e5e5e5;}       .prompt{color:var(--muted);}
+
+/* ── conclusion card ────────────────────────── */
+.conclusion {
+  background:var(--panel);
+  border:1px solid var(--border2);
+  border-radius:8px;
+  padding:28px;
+  position:relative;
+  overflow:hidden;
+}
+.conclusion::before {
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--purple3),var(--pink2),var(--purple3));
+}
+
+/* ── footer ─────────────────────────────────── */
+.footer {
+  text-align:center; padding:28px 0;
+  border-top:1px solid var(--border);
+  color:var(--dim); font-size:10px; letter-spacing:2px;
+}
+.footer-brand {
+  font-family:'Syne',sans-serif;
+  font-size:14px; font-weight:800;
+  color:var(--purple3); letter-spacing:5px;
+  margin-bottom:6px;
+  animation:glow-purple 4s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- ── SIDEBAR ─────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sb-brand">
+    <div class="sb-tag">// analysis notes</div>
+    <div class="sb-name"><span class="glitch" data-text="KIOPTRIX">KIOPTRIX</span></div>
+    <div class="sb-sub">192.168.57.134 · recon analysis</div>
+  </div>
+
+  <div class="nav-sec">Sections</div>
+  <a class="nav-link active"><div class="ndot" style="background:var(--purple)"></div>What nmap tells you</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--pink)"></div>Port 80 &amp; 443</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--orange)"></div>Port 139 · Samba</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--cyan)"></div>searchsploit</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--red)"></div>OpenSSL / mod_ssl</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--yellow)"></div>Info Disclosure</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--muted)"></div>SSH</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--green)"></div>Conclusion</a>
+
+  <div class="nav-sec">Related</div>
+  <a class="nav-link"><div class="ndot" style="background:var(--dim)"></div>lab_notes.html</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--dim)"></div>ssh_notes.html</a>
+  <a class="nav-link"><div class="ndot" style="background:var(--dim)"></div>dashboard.html</a>
+
+  <div class="sb-footer">
+    Kioptrix Level 1<br>
+    Authorized lab · educational
+  </div>
+</aside>
+
+<!-- ── MAIN ────────────────────────────────── -->
+<main class="main">
+
+  <div class="topbar">
+    <div class="eyebrow">// recon interpretation · authorized lab research</div>
+    <div class="page-title">Analysis <span>Notes</span></div>
+    <div class="page-sub">What the scan data actually means — 10 sections</div>
+  </div>
+
+
+  <!-- ── 01 NMAP ─────────────────────────────── -->
+  <div class="section" id="nmap">
+    <div class="section-label">// 01</div>
+    <div class="section-title">What Your Nmap Notes Are Telling You</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3>📡 Services Detected</h3><span class="badge b-purple">5 ports</span></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li><b>80/tcp</b> — HTTP web server</li>
+            <li><b>443/tcp</b> — HTTPS web server</li>
+            <li><b>139/tcp</b> — SMB / Samba</li>
+            <li><b>22/tcp</b> — SSH</li>
+            <li><b>111/tcp</b> — rpcbind</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🏷️ Versions Recorded</h3><span class="badge b-red">all legacy</span></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li><b>Apache httpd</b> 1.3.20</li>
+            <li><b>mod_ssl</b> 2.8.4</li>
+            <li><b>OpenSSL</b> 0.9.6b</li>
+            <li><b>Samba</b> 2.2.1a</li>
+            <li><b>OpenSSH</b> 2.9p2</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout cal-purple">
+      <span class="callout-icon">🟣</span>
+      <div class="callout-body">
+        <strong>Why version detection matters</strong>
+        <p>Once you know the software and its version, you can compare it against historical advisories, CVEs, and public research. Very glamorous. Just reading banners and comparing numbers — like digital archaeology. The version number is the key that unlocks everything downstream.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── 02 PORT 80/443 ──────────────────────── -->
+  <div class="section" id="web">
+    <div class="section-label">// 02</div>
+    <div class="section-title">Why Port 80 and 443 Matter</div>
+
+    <div class="note-block">
+      <p>Ports 80 and 443 usually mean a web server is running. The web stack here is old Apache with old SSL components. Several things were noted alongside the version info.</p>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-head"><h3>📋 What Was Observed</h3></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li><b>Default webpage</b> visible on port 80</li>
+            <li><b>404 page</b> reveals server information</li>
+            <li><b>Server headers</b> disclose full version stack</li>
+            <li><b>Webalizer</b> stats page exposed</li>
+            <li><b>SSLv2</b> supported on port 443</li>
+            <li><b>TRACE method</b> enabled</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>📖 What It Means</h3></div>
+        <div class="card-body">
+          <div class="note-block">
+            <p>This all falls under <hl>information disclosure</hl>. It does not automatically mean compromise. It means the server is revealing details that help an analyst understand:</p>
+          </div>
+          <ul class="blist" style="margin-top:10px">
+            <li>what software is running</li>
+            <li>how old it is</li>
+            <li>whether it may have known issues</li>
+            <li>whether additional content is exposed</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="quote">
+      "The web service discloses version and platform details that assist in identifying legacy components and narrowing vulnerability research."
+      <cite>// good language for a lab report</cite>
+    </div>
+  </div>
+
+
+  <!-- ── 03 SAMBA ────────────────────────────── -->
+  <div class="section" id="smb">
+    <div class="section-label">// 03</div>
+    <div class="section-title">Why Samba on Port 139 Matters</div>
+
+    <div class="note-block">
+      <p>Port 139 is associated with NetBIOS/SMB. The scan identifies <hl>Samba 2.2.1a</hl>. searchsploit then shows many public entries related to Samba 2.2.x, including things like trans2open, nttrans, and other historical overflows or privilege issues.</p>
+    </div>
+
+    <div class="callout cal-cyan" style="margin-top:16px">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <strong>Version correlation is not proof — it is a lead</strong>
+        <p>The detected Samba version is very old. Old Samba 2.2.x versions are well represented in vulnerability databases. That makes SMB a high-value research lead. It does not by itself prove the target is exploitable in a specific way.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:4px">
+      <div class="card-head"><h3>📝 What This Means — Academic Level</h3></div>
+      <div class="card-body">
+        <ul class="blist">
+          <li>The detected Samba version is <b>very old</b></li>
+          <li>Old Samba 2.2.x versions are <b>well represented</b> in vulnerability databases</li>
+          <li>That makes SMB a <b>high-value research lead</b></li>
+          <li>It does <b>not by itself prove</b> the target is exploitable in a specific way</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="quote">
+      "Samba 2.2.1a was detected on port 139. Public exploit databases contain multiple historical entries affecting Samba 2.2.x, making SMB a relevant area for further lab research and version-based risk assessment."
+      <cite>// best wording for notes</cite>
+    </div>
+  </div>
+
+
+  <!-- ── 04 SEARCHSPLOIT ─────────────────────── -->
+  <div class="section" id="searchsploit">
+    <div class="section-label">// 04</div>
+    <div class="section-title">What searchsploit Is Doing</div>
+
+    <div class="note-block">
+      <p>searchsploit is a local search tool for public exploit-db style entries. It does <hlr>not prove a target is vulnerable</hlr>. It only tells you that public research or proof-of-concept material exists for software matching the keywords you searched.</p>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-head"><h3>🔍 What the output showed</h3></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li>Many entries for <b>Samba 2.2.x</b></li>
+            <li>Entries for <b>Apache mod_ssl 2.8.x</b></li>
+            <li>Entry tied to <b>OpenSSL KEY_ARG overflow</b></li>
+            <li>Historical names like <b>openssl-too-open</b></li>
+            <li>Historical names like <b>OpenFuck</b> in the results</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>⚖️ Safe vs Unsafe Takeaway</h3></div>
+        <div class="card-body">
+          <div class="do-dont" style="grid-template-columns:1fr;">
+            <div class="do-box" style="margin-bottom:10px">
+              <div class="do-label">✓ Safe</div>
+              <div class="do-item">Recon versions line up with known historical vulnerability research</div>
+            </div>
+            <div class="dont-box">
+              <div class="dont-label">✗ Unsafe</div>
+              <div class="dont-item">"Now I should run those payloads." — do not write this unless you enjoy making filters and professors suspicious.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── 05 OPENSSL/MOD_SSL ──────────────────── -->
+  <div class="section" id="ssl">
+    <div class="section-label">// 05</div>
+    <div class="section-title">What the OpenSSL / mod_ssl Findings Mean</div>
+
+    <div class="card">
+      <div class="card-head"><h3>🔐 Stack in Question</h3><span class="badge b-red">legacy SSL</span></div>
+      <div class="card-body">
+        <table class="data-table">
+          <thead><tr><th>Component</th><th>Version</th><th>Significance</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Apache httpd</td>
+              <td><span class="badge b-red">1.3.20</span></td>
+              <td>Released 2001 — extremely old, no security support</td>
+            </tr>
+            <tr>
+              <td>mod_ssl</td>
+              <td><span class="badge b-red">2.8.4</span></td>
+              <td>Memory handling flaws documented in historical research; below 2.8.7 threshold</td>
+            </tr>
+            <tr>
+              <td>OpenSSL</td>
+              <td><span class="badge b-red">0.9.6b</span></td>
+              <td>SSLv2-era code, EOL, associated with KEY_ARG overflow research</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="callout cal-purple" style="margin-top:4px">
+      <span class="callout-icon">🟣</span>
+      <div class="callout-body">
+        <strong>The lesson at a safe level</strong>
+        <p>Very old SSL/TLS components often had serious memory handling flaws. SSLv2-era code is especially notorious. If a server supports old protocols and old libraries, that increases historical risk. Version matching suggests a potential research avenue — not a guaranteed result.</p>
+      </div>
+    </div>
+
+    <div class="quote">
+      "The HTTPS service appears to use legacy mod_ssl/OpenSSL components associated with historical public vulnerability research. This indicates elevated risk due to outdated cryptographic and server-side SSL handling."
+      <cite>// write it like this for a class note — sounds smart because it is smart</cite>
+    </div>
+  </div>
+
+
+  <!-- ── 06 TRANS2OPEN ───────────────────────── -->
+  <div class="section" id="trans2open">
+    <div class="section-label">// 06</div>
+    <div class="section-title">What the Samba trans2open Note Means</div>
+
+    <div class="note-block">
+      <p>The Rapid7 page about Samba trans2open is a historical reference. The safe interpretation is straightforward.</p>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-head"><h3>📚 Historical Context</h3></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li>It is a <b>historical buffer overflow</b></li>
+            <li>Affected certain <b>older Samba 2.2.x</b> versions</li>
+            <li>Target's version <b>2.2.1a</b> is in that old family</li>
+            <li>Makes it a <b>relevant historical lead</b> for research</li>
+            <li><b>Not</b> automatic confirmation of exploitability</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>🗣️ How Professionals Talk About It</h3></div>
+        <div class="card-body">
+          <div class="note-block">
+            <p>They say:</p>
+          </div>
+          <ul class="blist" style="margin-top:8px">
+            <li><b>"relevant lead"</b></li>
+            <li><b>"version overlap"</b></li>
+            <li><b>"candidate issue"</b></li>
+            <li><b>"requires validation"</b></li>
+          </ul>
+          <div class="callout cal-red" style="margin-top:12px">
+            <span class="callout-icon">✗</span>
+            <div class="callout-body">
+              <p>They do <b>not</b> say "box owned" because a banner matched a database entry.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── 07 INFO DISCLOSURE ──────────────────── -->
+  <div class="section" id="disclosure">
+    <div class="section-label">// 07</div>
+    <div class="section-title">What "Information Disclosure" Means in Your Notes</div>
+
+    <div class="note-block">
+      <p>Several items in the notes fall under information disclosure. None of these alone are game over. Together they build a picture of a legacy, probably intentionally vulnerable lab target.</p>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-head"><h3>📋 Enumeration Value — Item by Item</h3></div>
+      <div class="card-body">
+        <table class="data-table">
+          <thead><tr><th>Finding</th><th>Why It Matters</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Default Apache page</td>
+              <td>Suggests the server may not be hardened — default installation with no customization applied</td>
+            </tr>
+            <tr>
+              <td>Server headers disclose version</td>
+              <td>Reveals the full product and version stack — attacker doesn't need to guess which CVEs apply</td>
+            </tr>
+            <tr>
+              <td>404 page behavior</td>
+              <td>Sometimes leaks stack details, internal path structure, or framework information</td>
+            </tr>
+            <tr>
+              <td>Webalizer exposed</td>
+              <td>Leaks traffic patterns, referrer data, time-based usage, and may expose directory structure</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── 08 SSH ──────────────────────────────── -->
+  <div class="section" id="ssh">
+    <div class="section-label">// 08</div>
+    <div class="section-title">What the SSH Result Means</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-head"><h3>🔑 What OpenSSH 2.9p2 Tells You</h3></div>
+        <div class="card-body">
+          <ul class="blist">
+            <li>Another service is <b>exposed and documented</b></li>
+            <li>It is also <b>very old</b> — released circa 2001</li>
+            <li>Should be documented as part of the <b>attack surface</b></li>
+            <li>SSHv1 protocol supported — <b>cryptographically weak</b></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>📊 Priority Assessment</h3><span class="badge b-muted">lower priority</span></div>
+        <div class="card-body">
+          <div class="note-block">
+            <p>Unless you have specific evidence of a vulnerability or valid credentials, SSH is usually just a noted service — not the main lead compared to the old Apache/mod_ssl/OpenSSL and Samba stack.</p>
+          </div>
+          <div class="callout cal-yellow" style="margin-top:12px">
+            <span class="callout-icon">📝</span>
+            <div class="callout-body">
+              <p>"SSH is present and should be documented, but the strongest historical research leads come from the legacy web and SMB services."</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ── 09 CONCLUSION ───────────────────────── -->
+  <div class="section" id="conclusion">
+    <div class="section-label">// 09</div>
+    <div class="section-title">What You Should Conclude Overall</div>
+
+    <div class="conclusion">
+      <div class="note-block" style="font-size:14px;line-height:2;margin-bottom:24px">
+        <p>Your evidence supports this high-level conclusion:</p>
+      </div>
+      <div class="quote" style="font-size:13px">
+        The Kioptrix target exposes multiple legacy network services, including old Apache/mod_ssl/OpenSSL and Samba components. Public vulnerability databases contain numerous historical entries affecting these software families and versions, making HTTP/HTTPS and SMB the most significant areas for further authorized lab analysis.
+        <cite>// the whole story in one paragraph</cite>
+      </div>
+      <div class="note-block" style="margin-top:20px">
+        <p>That is the whole story. What you know is:</p>
+      </div>
+      <ul class="blist" style="margin-top:12px">
+        <li>versions are <b>old</b></li>
+        <li>public research <b>exists</b></li>
+        <li>the services are worth <b>investigating in a lab</b></li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- ── 10 WHAT NOT TO CONCLUDE ─────────────── -->
+  <div class="section" id="mindset">
+    <div class="section-label">// 10</div>
+    <div class="section-title">What You Should NOT Conclude</div>
+
+    <div class="do-dont">
+      <div class="dont-box">
+        <div class="dont-label">✗ Do not say</div>
+        <div class="dont-item">"This definitely works"</div>
+        <div class="dont-item">"This exploit will pop the box"</div>
+        <div class="dont-item">"This version means guaranteed RCE"</div>
+        <div class="dont-item">"We are going to attack X with Y"</div>
+      </div>
+      <div class="do-box">
+        <div class="do-label">✓ The disciplined mindset</div>
+        <div class="do-item">Versions are old and documented in public research</div>
+        <div class="do-item">Public research exists for these software families</div>
+        <div class="do-item">The services are worth investigating in an authorized lab</div>
+        <div class="do-item">Less movie hacker — more analyst</div>
+      </div>
+    </div>
+
+    <div class="callout cal-pink" style="margin-top:6px">
+      <span class="callout-icon">🎯</span>
+      <div class="callout-body">
+        <strong>The disciplined mindset</strong>
+        <p>Because you do not know exploitability from recon alone. What you know is: versions are old, public research exists, and the services are worth investigating in a lab. That's it. Less movie hacker, more analyst.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <div class="footer">
+    <div class="footer-brand">KIOPTRIX</div>
+    analysis_notes.html · 192.168.57.134 · authorized lab · educational use only
+  </div>
+
+</main>
+</body>
+</html>
